@@ -4,6 +4,10 @@ import LoginPage from '@/components/LoginPage';
 import DashboardLayout from '@/components/DashboardLayout';
 import HomePage from '@/components/HomePage';
 import ProfilePage from '@/components/ProfilePage';
+import PerformancePage from '@/components/PerformancePage';
+import RankingPage from '@/components/RankingPage';
+import RequestsPage from '@/components/RequestsPage';
+import CalendarPage from '@/components/CalendarPage';
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
@@ -34,29 +38,13 @@ const Index = () => {
       case 'profile':
         return <ProfilePage user={user} />;
       case 'performance':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Desempenho - Em desenvolvimento</p>
-          </div>
-        );
+        return <PerformancePage user={user} />;
       case 'ranking':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Ranking - Em desenvolvimento</p>
-          </div>
-        );
+        return <RankingPage user={user} />;
       case 'requests':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Solicitações - Em desenvolvimento</p>
-          </div>
-        );
+        return <RequestsPage user={user} />;
       case 'calendar':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Calendário - Em desenvolvimento</p>
-          </div>
-        );
+        return <CalendarPage user={user} />;
       case 'team':
         return (
           <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
