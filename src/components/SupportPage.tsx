@@ -1,0 +1,434 @@
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { MessageCircle, Plus, ThumbsUp, ThumbsDown, Bot, User, Edit, Trash2, BarChart3 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface SupportPageProps {
+  user: any;
+}
+
+const SupportPage = ({ user }: SupportPageProps) => {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [knowledgeBase, setKnowledgeBase] = useState<any[]>([]);
+  const [isManaging, setIsManaging] = useState(false);
+  const [newKnowledge, setNewKnowledge] = useState({ keywords: '', answer: '' });
+  const [editingKnowledge, setEditingKnowledge] = useState<any>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = () => {
+    const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
+    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base') || '[]');
+    
+    setMessages(storedMessages);
+    setKnowledgeBase(storedKnowledge);
+    
+    // Inicializar base de conhecimento padrão se estiver vazia
+    if (storedKnowledge.length === 0) {
+      const defaultKnowledge = [
+        {
+          id: '1',
+          keywords: 'férias, solicitar férias, como pedir férias',
+          answer: 'Para solicitar férias, acesse o menu "Solicitações", clique em "Nova Solicitação", selecione o tipo "Férias" e preencha as datas desejadas. Sua solicitação será enviada para aprovação do supervisor.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '2',
+          keywords: 'horário, trocar horário, mudança de horário',
+          answer: 'Para trocar horário com um colega, vá no menu "Solicitações", clique em "Troca de Horário", selecione o colega e as datas desejadas. Ambos precisam concordar com a troca.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '3',
+          keywords: 'pontos, ranking, como ganhar pontos',
+          answer: 'Você pode ganhar pontos através de: boa avaliação nos atendimentos, participação em quizzes, bonificações manuais do supervisor e metas alcançadas. Consulte o menu "Ranking" para ver sua posição.',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      
+      setKnowledgeBase(defaultKnowledge);
+      localStorage.setItem('orakle_knowledge_base', JSON.stringify(defaultKnowledge));
+    }
+  };
+
+  const canManageKnowledge = user.userType === 'supervisor' || user.userType === 'admin';
+
+  const findBestAnswer = (question: string) => {
+    const lowerQuestion = question.toLowerCase();
+    
+    for (const knowledge of knowledgeBase) {
+      const keywords = knowledge.keywords.toLowerCase().split(',').map((k: string) => k.trim());
+      
+      if (keywords.some(keyword => lowerQuestion.includes(keyword))) {
+        return knowledge.answer;
+      }
+    }
+    
+    return "Desculpe, não encontrei informações sobre sua pergunta. Tente reformular ou entre em contato com seu supervisor para mais detalhes.";
+  };
+
+  const sendMessage = () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      text: inputMessage,
+      sender: 'user',
+      timestamp: new Date().toISOString()
+    };
+
+    const aiResponse = findBestAnswer(inputMessage);
+    const aiMessage = {
+      id: (Date.now() + 1).toString(),
+      text: aiResponse,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+      canRate: true
+    };
+
+    const updatedMessages = [...messages, userMessage, aiMessage];
+    setMessages(updatedMessages);
+    localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
+    
+    setInputMessage('');
+  };
+
+  const rateResponse = (messageId: string, helpful: boolean) => {
+    const updatedMessages = messages.map(msg => {
+      if (msg.id === messageId) {
+        return { ...msg, rating: helpful ? 'helpful' : 'not_helpful', canRate: false };
+      }
+      return msg;
+    });
+    
+    setMessages(updatedMessages);
+    localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
+    
+    // Salvar feedback para análise
+    const feedback = JSON.parse(localStorage.getItem('orakle_ai_feedback') || '[]');
+    feedback.push({
+      id: Date.now().toString(),
+      messageId,
+      userId: user.id,
+      helpful,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('orakle_ai_feedback', JSON.stringify(feedback));
+    
+    toast({
+      title: "Obrigado pelo feedback!",
+      description: helpful ? "Marcado como útil" : "Marcado como não útil"
+    });
+  };
+
+  const addKnowledge = () => {
+    if (!newKnowledge.keywords.trim() || !newKnowledge.answer.trim()) return;
+
+    const knowledge = {
+      id: Date.now().toString(),
+      ...newKnowledge,
+      createdAt: new Date().toISOString(),
+      createdBy: user.id
+    };
+
+    const updatedKnowledge = [...knowledgeBase, knowledge];
+    setKnowledgeBase(updatedKnowledge);
+    localStorage.setItem('orakle_knowledge_base', JSON.stringify(updatedKnowledge));
+    
+    setNewKnowledge({ keywords: '', answer: '' });
+    
+    toast({
+      title: "Conhecimento adicionado",
+      description: "Nova resposta adicionada à base de conhecimento!"
+    });
+  };
+
+  const updateKnowledge = () => {
+    if (!editingKnowledge) return;
+
+    const updatedKnowledge = knowledgeBase.map(k => 
+      k.id === editingKnowledge.id ? editingKnowledge : k
+    );
+    
+    setKnowledgeBase(updatedKnowledge);
+    localStorage.setItem('orakle_knowledge_base', JSON.stringify(updatedKnowledge));
+    setEditingKnowledge(null);
+    
+    toast({
+      title: "Conhecimento atualizado",
+      description: "Resposta atualizada com sucesso!"
+    });
+  };
+
+  const deleteKnowledge = (knowledgeId: string) => {
+    const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
+    setKnowledgeBase(updatedKnowledge);
+    localStorage.setItem('orakle_knowledge_base', JSON.stringify(updatedKnowledge));
+    
+    toast({
+      title: "Conhecimento removido",
+      description: "Resposta removida da base de conhecimento!"
+    });
+  };
+
+  if (canManageKnowledge && isManaging) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <h1 className="text-3xl font-bold text-slate-800">Gerenciar Base de Conhecimento</h1>
+          <Button
+            onClick={() => setIsManaging(false)}
+            variant="outline"
+            className="rounded-2xl"
+          >
+            Voltar ao Chat
+          </Button>
+        </div>
+
+        {/* Adicionar Novo Conhecimento */}
+        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-slate-800">Adicionar Nova Resposta</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-600 mb-2 block">
+                Palavras-chave (separadas por vírgula)
+              </label>
+              <Input
+                placeholder="Ex: férias, solicitar férias, como pedir férias"
+                value={newKnowledge.keywords}
+                onChange={(e) => setNewKnowledge({...newKnowledge, keywords: e.target.value})}
+                className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-600 mb-2 block">
+                Resposta
+              </label>
+              <Textarea
+                placeholder="Digite a resposta que a IA deve dar quando essas palavras-chave forem mencionadas..."
+                value={newKnowledge.answer}
+                onChange={(e) => setNewKnowledge({...newKnowledge, answer: e.target.value})}
+                className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] min-h-[100px]"
+              />
+            </div>
+            <Button
+              onClick={addKnowledge}
+              disabled={!newKnowledge.keywords.trim() || !newKnowledge.answer.trim()}
+              className="w-full rounded-2xl"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Resposta
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Lista de Conhecimentos */}
+        <div className="space-y-4">
+          {knowledgeBase.map(knowledge => (
+            <Card key={knowledge.id} className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm font-medium text-slate-600 mb-1">Palavras-chave:</div>
+                    <div className="text-sm text-slate-800">{knowledge.keywords}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-slate-600 mb-1">Resposta:</div>
+                    <div className="text-sm text-slate-800">{knowledge.answer}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingKnowledge(knowledge)}
+                          className="rounded-xl"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="rounded-3xl border-0 bg-white/95 backdrop-blur-sm">
+                        <DialogHeader>
+                          <DialogTitle>Editar Resposta</DialogTitle>
+                        </DialogHeader>
+                        {editingKnowledge && (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-sm font-medium text-slate-600 mb-2 block">
+                                Palavras-chave
+                              </label>
+                              <Input
+                                value={editingKnowledge.keywords}
+                                onChange={(e) => setEditingKnowledge({...editingKnowledge, keywords: e.target.value})}
+                                className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-slate-600 mb-2 block">
+                                Resposta
+                              </label>
+                              <Textarea
+                                value={editingKnowledge.answer}
+                                onChange={(e) => setEditingKnowledge({...editingKnowledge, answer: e.target.value})}
+                                className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] min-h-[100px]"
+                              />
+                            </div>
+                            <Button onClick={updateKnowledge} className="w-full rounded-2xl">
+                              Salvar Alterações
+                            </Button>
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteKnowledge(knowledge.id)}
+                      className="rounded-xl text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-800">Suporte AI</h1>
+        
+        {canManageKnowledge && (
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setIsManaging(true)}
+              variant="outline"
+              className="rounded-2xl"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Gerenciar IA
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Estatísticas
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-slate-800 flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-blue-500" />
+            Chat de Suporte
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Área de Mensagens */}
+          <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
+            {messages.length === 0 && (
+              <div className="text-center py-8 text-slate-500">
+                <Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" />
+                <p>Olá! Sou o assistente virtual da Orakle.</p>
+                <p>Como posso ajudá-lo hoje?</p>
+              </div>
+            )}
+            
+            {messages.map(message => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`flex gap-3 max-w-[80%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    message.sender === 'user' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {message.sender === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                  </div>
+                  
+                  <div className={`p-4 rounded-2xl ${
+                    message.sender === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-100 text-slate-800'
+                  }`}>
+                    <p className="text-sm">{message.text}</p>
+                    <div className="text-xs mt-2 opacity-70">
+                      {new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </div>
+                    
+                    {message.sender === 'ai' && message.canRate && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => rateResponse(message.id, true)}
+                          className="flex items-center gap-1 text-xs hover:bg-green-100 hover:text-green-700 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                          Útil
+                        </button>
+                        <button
+                          onClick={() => rateResponse(message.id, false)}
+                          className="flex items-center gap-1 text-xs hover:bg-red-100 hover:text-red-700 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                          Não útil
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Input de Mensagem */}
+          <div className="flex gap-3">
+            <Input
+              placeholder="Digite sua pergunta..."
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={!inputMessage.trim()}
+              className="rounded-2xl px-6"
+            >
+              Enviar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default SupportPage;

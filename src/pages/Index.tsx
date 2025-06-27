@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import LoginPage from '@/components/LoginPage';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -8,6 +7,10 @@ import PerformancePage from '@/components/PerformancePage';
 import RankingPage from '@/components/RankingPage';
 import RequestsPage from '@/components/RequestsPage';
 import CalendarPage from '@/components/CalendarPage';
+import TeamPage from '@/components/TeamPage';
+import RewardsPage from '@/components/RewardsPage';
+import GamesPage from '@/components/GamesPage';
+import SupportPage from '@/components/SupportPage';
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
@@ -46,29 +49,13 @@ const Index = () => {
       case 'calendar':
         return <CalendarPage user={user} />;
       case 'team':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Equipe - Em desenvolvimento</p>
-          </div>
-        );
+        return <TeamPage user={user} />;
       case 'rewards':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Premiações - Em desenvolvimento</p>
-          </div>
-        );
+        return <RewardsPage user={user} />;
       case 'games':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Jogos - Em desenvolvimento</p>
-          </div>
-        );
+        return <GamesPage user={user} />;
       case 'support':
-        return (
-          <div className="flex items-center justify-center h-64 bg-white/70 backdrop-blur-sm rounded-3xl">
-            <p className="text-slate-500 text-lg">Página de Suporte AI - Em desenvolvimento</p>
-          </div>
-        );
+        return <SupportPage user={user} />;
       default:
         return <HomePage user={user} />;
     }
