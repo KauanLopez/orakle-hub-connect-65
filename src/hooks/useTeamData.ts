@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,7 +13,13 @@ export const useTeamData = () => {
 
   const loadData = () => {
     const storedTeams = JSON.parse(localStorage.getItem('orakle_teams') || '[]');
-    const storedUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+    let storedUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+
+    if (storedUsers && typeof storedUsers === 'object' && !Array.isArray(storedUsers)) {
+      storedUsers = Object.values(storedUsers);
+    } else if (!Array.isArray(storedUsers)) {
+      storedUsers = [];
+    }
     
     setTeams(storedTeams);
     setUsers(storedUsers);

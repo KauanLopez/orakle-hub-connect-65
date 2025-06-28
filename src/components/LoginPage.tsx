@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,13 +18,19 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const initializeData = () => {
     // Initialize mock data in localStorage if not exists
     if (!localStorage.getItem('orakle_users')) {
-      const mockUsers = {
-        colaborador: { username: 'colaborador', password: '123', name: 'Ana Silva', role: 'Analista', team: 'Vendas', points: 1500 },
-        supervisor: { username: 'supervisor', password: '123', name: 'Carlos Santos', role: 'Supervisor', team: 'Vendas', points: 2800 },
-        admin: { username: 'admin', password: '123', name: 'Maria Oliveira', role: 'Administrador', team: 'Gestão', points: 5000 }
-      };
+      const mockUsers = [
+        { id: '1', userType: 'colaborador', username: 'colaborador', password: '123', name: 'Ana Silva', role: 'Analista', team: 'Vendas', teamId: '1', points: 1500 },
+        { id: '2', userType: 'supervisor', username: 'supervisor', password: '123', name: 'Carlos Santos', role: 'Supervisor', team: 'Vendas', teamId: '1', points: 2800 },
+        { id: '3', userType: 'admin', username: 'admin', password: '123', name: 'Maria Oliveira', role: 'Administrador', team: 'Gestão', teamId: '2', points: 5000 }
+      ];
       localStorage.setItem('orakle_users', JSON.stringify(mockUsers));
       
+      const mockTeams = [
+        { id: '1', name: 'Vendas', supervisorId: '2' },
+        { id: '2', name: 'Gestão', supervisorId: '3' }
+      ];
+      localStorage.setItem('orakle_teams', JSON.stringify(mockTeams));
+
       // Initialize notifications
       const notifications = [
         { id: 1, message: 'Bem-vindo à plataforma Orakle!', read: false, date: new Date().toISOString() },
@@ -46,13 +51,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     }
 
     initializeData();
-    const users = JSON.parse(localStorage.getItem('orakle_users') || '{}');
-    const user = users[userType];
+    const users = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+    const user = users.find((u: any) => u.userType === userType && u.username === username && u.password === password);
 
-    if (user && user.username === username && user.password === password) {
-      const userWithType = { ...user, userType };
-      localStorage.setItem('orakle_current_user', JSON.stringify(userWithType));
-      onLogin(userWithType);
+    if (user) {
+      localStorage.setItem('orakle_current_user', JSON.stringify(user));
+      onLogin(user);
       toast({
         title: "Login realizado!",
         description: `Bem-vindo, ${user.name}!`
