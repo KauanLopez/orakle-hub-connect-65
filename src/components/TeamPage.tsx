@@ -37,14 +37,14 @@ const TeamPage = ({ user }: TeamPageProps) => {
     
     setTeams(storedTeams);
     setUsers(storedUsers);
-    setUsersWithoutTeam(storedUsers.filter(u => !u.teamId));
+    setUsersWithoutTeam(storedUsers.filter((u: any) => !u.teamId));
   };
 
   const getCurrentTeamMembers = () => {
     if (user.userType === 'admin') {
-      return selectedTeam ? users.filter(u => u.teamId === selectedTeam) : users;
+      return selectedTeam ? users.filter((u: any) => u.teamId === selectedTeam) : users;
     }
-    return users.filter(u => u.teamId === user.teamId);
+    return users.filter((u: any) => u.teamId === user.teamId);
   };
 
   const createTeam = () => {
@@ -71,7 +71,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
   const addPointsToUser = () => {
     if (!selectedUser || !pointsReason.trim()) return;
     
-    const updatedUsers = users.map(u => {
+    const updatedUsers = users.map((u: any) => {
       if (u.id === selectedUser) {
         const currentPoints = u.points || 0;
         const newPoints = pointsType === 'add' 
@@ -100,7 +100,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
   const updateUser = () => {
     if (!editingUser) return;
     
-    const updatedUsers = users.map(u => 
+    const updatedUsers = users.map((u: any) => 
       u.id === editingUser.id ? editingUser : u
     );
     
@@ -115,7 +115,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
   };
 
   const removeUserFromTeam = (userId: string) => {
-    const updatedUsers = users.map(u => 
+    const updatedUsers = users.map((u: any) => 
       u.id === userId ? { ...u, teamId: null } : u
     );
     
@@ -130,7 +130,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
   };
 
   const moveUserToTeam = (userId: string, teamId: string) => {
-    const updatedUsers = users.map(u => 
+    const updatedUsers = users.map((u: any) => 
       u.id === userId ? { ...u, teamId } : u
     );
     
@@ -157,7 +157,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
               </SelectTrigger>
               <SelectContent className="rounded-xl border-0 bg-white/95 backdrop-blur-sm shadow-lg">
                 <SelectItem value="">Todas as equipes</SelectItem>
-                {teams.map(team => (
+                {teams.map((team: any) => (
                   <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -206,7 +206,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
                 <SelectValue placeholder="Selecionar colaborador" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-0 bg-white/95 backdrop-blur-sm shadow-lg">
-                {getCurrentTeamMembers().map(member => (
+                {getCurrentTeamMembers().map((member: any) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name} ({member.points || 0} pts)
                   </SelectItem>
@@ -263,14 +263,14 @@ const TeamPage = ({ user }: TeamPageProps) => {
           <CardTitle className="text-slate-800 flex items-center gap-2">
             <Users className="h-5 w-5" />
             {user.userType === 'admin' && selectedTeam ? 
-              `Membros - ${teams.find(t => t.id === selectedTeam)?.name}` : 
+              `Membros - ${teams.find((t: any) => t.id === selectedTeam)?.name}` : 
               'Membros da Equipe'
             }
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {getCurrentTeamMembers().map(member => (
+            {getCurrentTeamMembers().map((member: any) => (
               <Card key={member.id} className="bg-gradient-to-br from-slate-50 to-blue-50 border-0 shadow-sm rounded-2xl">
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -347,7 +347,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {usersWithoutTeam.map(user => (
+              {usersWithoutTeam.map((user: any) => (
                 <Card key={user.id} className="bg-gradient-to-br from-orange-50 to-red-50 border-0 shadow-sm rounded-2xl">
                   <CardContent className="p-4">
                     <div className="space-y-2">
@@ -359,7 +359,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
                           <SelectValue placeholder="Mover para equipe" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-0 bg-white/95 backdrop-blur-sm shadow-lg">
-                          {teams.map(team => (
+                          {teams.map((team: any) => (
                             <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                           ))}
                         </SelectContent>
