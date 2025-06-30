@@ -144,7 +144,6 @@ const GamesPage = ({ user }: GamesPageProps) => {
     const correctAnswers = finalAnswers.filter((a: any) => a.isCorrect).length;
     const totalPoints = (correctAnswers * playingGame.pointsPerCorrect) + playingGame.pointsPerParticipation;
     
-    // Atualizar pontos do usuário
     const currentUserData = JSON.parse(localStorage.getItem('orakle_current_user') || '{}');
     const allUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
     
@@ -156,7 +155,6 @@ const GamesPage = ({ user }: GamesPageProps) => {
     localStorage.setItem('orakle_current_user', JSON.stringify(updatedUser));
     localStorage.setItem('orakle_users', JSON.stringify(updatedUsers));
 
-    // Salvar resultado do jogo
     const gameHistory = JSON.parse(localStorage.getItem('orakle_game_history') || '[]');
     const result = {
       id: Date.now().toString(),
@@ -207,6 +205,16 @@ const GamesPage = ({ user }: GamesPageProps) => {
     toast({
       title: "Obrigado pelo feedback!",
       description: "Sua avaliação foi registrada com sucesso."
+    });
+  };
+
+  const deleteGame = (gameId: string) => {
+    const updatedGames = games.filter((g) => g.id !== gameId);
+    setGames(updatedGames);
+    localStorage.setItem('orakle_games', JSON.stringify(updatedGames));
+    toast({
+      title: 'Jogo Removido',
+      description: 'O jogo foi removido com sucesso.',
     });
   };
 
@@ -529,6 +537,13 @@ const GamesPage = ({ user }: GamesPageProps) => {
                         }}
                       >
                         <BarChart3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl text-red-600 hover:bg-red-50"
+                        onClick={() => deleteGame(game.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
