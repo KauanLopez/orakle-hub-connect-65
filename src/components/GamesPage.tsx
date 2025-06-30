@@ -31,6 +31,8 @@ const GamesPage = ({ user }: GamesPageProps) => {
     questions: [{ question: '', options: ['', '', '', ''], correctOption: 0 }]
   });
   const { toast } = useToast();
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [selectedGameForStats, setSelectedGameForStats] = useState<any>(null);
 
   useEffect(() => {
     loadGames();
@@ -206,6 +208,55 @@ const GamesPage = ({ user }: GamesPageProps) => {
       title: "Obrigado pelo feedback!",
       description: "Sua avaliação foi registrada com sucesso."
     });
+  };
+
+  const GameStatsModal = () => {
+    if (!selectedGameForStats) return null;
+  
+    const { name, statistics } = selectedGameForStats;
+    const { ratings = [], comments = [] } = statistics;
+    const averageRating = ratings.length > 0
+      ? (ratings.reduce((acc: any, r: any) => acc + r.rating, 0) / ratings.length).toFixed(1)
+      : 'N/A';
+  
+    return (
+      <Dialog open={showStatsModal} onOpenChange={setShowStatsModal}>
+        <DialogContent className="rounded-3xl border-0 bg-white/95 backdrop-blur-sm max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Estatísticas - {name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Média de Avaliações: {averageRating} <Star className="inline-block h-4 w-4 text-amber-400" /></p>
+                <p>Total de Avaliações: {ratings.length}</p>
+                <p>Total de Comentários: {comments.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Feedbacks</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {comments.length > 0 ? comments.map((comment: any, index: number) => {
+                  const userRating = ratings.find((r: any) => r.userId === comment.userId);
+                  return (
+                    <div key={index} className="border-b pb-2">
+                      <p className="text-sm font-semibold">Usuário: {comment.userId}</p>
+                      {userRating && <p className="text-sm">Nota: {userRating.rating}/5</p>}
+                      <p className="text-sm italic">"{comment.comment}"</p>
+                    </div>
+                  );
+                }) : <p>Nenhum comentário ainda.</p>}
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   if (playingGame && !gameResults) {
@@ -472,6 +523,10 @@ const GamesPage = ({ user }: GamesPageProps) => {
                       <Button
                         variant="outline"
                         className="rounded-2xl"
+                        onClick={() => {
+                          setSelectedGameForStats(game);
+                          setShowStatsModal(true);
+                        }}
                       >
                         <BarChart3 className="h-4 w-4" />
                       </Button>
@@ -497,6 +552,8 @@ const GamesPage = ({ user }: GamesPageProps) => {
           </CardContent>
         </Card>
       )}
+
+      <GameStatsModal />
     </div>
   );
 };
