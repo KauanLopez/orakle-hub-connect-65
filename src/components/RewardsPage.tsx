@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,9 @@ interface RewardsPageProps {
   user: any;
 }
 
-const RewardsPage = ({ user }: RewardsPageProps) => {
+const RewardsPage = ({ user: initialUser }: RewardsPageProps) => {
   const [rewards, setRewards] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState(initialUser);
   const [isAddingReward, setIsAddingReward] = useState(false);
   const [editingReward, setEditingReward] = useState<any>(null);
   const [newReward, setNewReward] = useState({
@@ -24,15 +24,21 @@ const RewardsPage = ({ user }: RewardsPageProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadRewards();
-  }, []);
+    loadData();
+  }, [initialUser.id]);
 
-  const loadRewards = () => {
+  const loadData = () => {
     const storedRewards = JSON.parse(localStorage.getItem('orakle_rewards') || '[]');
     setRewards(storedRewards);
+
+    const storedUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+    const updatedUser = storedUsers.find((u: any) => u.id === initialUser.id);
+    if (updatedUser) {
+      setCurrentUser(updatedUser);
+    }
   };
 
-  const canManageRewards = user.userType === 'supervisor' || user.userType === 'admin';
+  const canManageRewards = currentUser.userType === 'supervisor' || currentUser.userType === 'admin';
 
   const addReward = () => {
     if (!newReward.name.trim() || newReward.points <= 0) return;
@@ -41,7 +47,7 @@ const RewardsPage = ({ user }: RewardsPageProps) => {
       id: Date.now().toString(),
       ...newReward,
       createdAt: new Date().toISOString(),
-      createdBy: user.id
+      createdBy: currentUser.id
     };
 
     const updatedRewards = [...rewards, reward];
@@ -86,57 +92,52 @@ const RewardsPage = ({ user }: RewardsPageProps) => {
   };
 
   const redeemReward = (reward: any) => {
-    const currentUser = JSON.parse(localStorage.getItem('orakle_current_user') || '{}');
-    const allUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
-    
-    const userPoints = currentUser.points || 0;
-    
-    if (userPoints < reward.points) {
+    if (currentUser.points >= reward.cost) {
+      const newPoints = currentUser.points - reward.cost;
+      
+      const updatedUser = { ...currentUser, points: newPoints };
+      setCurrentUser(updatedUser);
+
+      const allUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+      const updatedUsers = allUsers.map((u: any) => 
+        u.id === currentUser.id ? updatedUser : u
+      );
+      
+      localStorage.setItem('orakle_users', JSON.stringify(updatedUsers));
+      localStorage.setItem('orakle_current_user', JSON.stringify(updatedUser));
+      
+      const redemptions = JSON.parse(localStorage.getItem('orakle_redemptions') || '[]');
+      const redemption = {
+        id: Date.now().toString(),
+        userId: currentUser.id,
+        rewardId: reward.id,
+        rewardName: reward.name,
+        pointsUsed: reward.points,
+        redeemedAt: new Date().toISOString()
+      };
+      
+      redemptions.push(redemption);
+      localStorage.setItem('orakle_redemptions', JSON.stringify(redemptions));
+      
+      toast({
+        title: "Prêmio resgatado!",
+        description: `Você resgatou "${reward.name}" por ${reward.points} pontos!`
+      });
+    } else {
       toast({
         title: "Pontos insuficientes",
-        description: `Você precisa de ${reward.points} pontos para resgatar este prêmio. Você tem ${userPoints} pontos.`,
+        description: `Você precisa de ${reward.points} pontos para resgatar este prêmio. Você tem ${currentUser.points} pontos.`,
         variant: "destructive"
       });
-      return;
     }
-
-    // Deduzir pontos do usuário
-    const updatedUser = { ...currentUser, points: userPoints - reward.points };
-    const updatedUsers = allUsers.map((u: any) => 
-      u.id === currentUser.id ? updatedUser : u
-    );
-    
-    localStorage.setItem('orakle_current_user', JSON.stringify(updatedUser));
-    localStorage.setItem('orakle_users', JSON.stringify(updatedUsers));
-    
-    // Registrar resgate
-    const redemptions = JSON.parse(localStorage.getItem('orakle_redemptions') || '[]');
-    const redemption = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      rewardId: reward.id,
-      rewardName: reward.name,
-      pointsUsed: reward.points,
-      redeemedAt: new Date().toISOString()
-    };
-    
-    redemptions.push(redemption);
-    localStorage.setItem('orakle_redemptions', JSON.stringify(redemptions));
-    
-    toast({
-      title: "Prêmio resgatado!",
-      description: `Você resgatou "${reward.name}" por ${reward.points} pontos!`
-    });
   };
-
-  const currentUserPoints = user.points || 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Premiações</h1>
-          <p className="text-slate-600 mt-2">Seus pontos: {currentUserPoints}</p>
+          <p className="text-slate-600 mt-2">Seus pontos: {currentUser.points || 0}</p>
         </div>
         
         {canManageRewards && (
@@ -281,7 +282,7 @@ const RewardsPage = ({ user }: RewardsPageProps) => {
                   {!canManageRewards && (
                     <Button
                       onClick={() => redeemReward(reward)}
-                      disabled={currentUserPoints < reward.points}
+                      disabled={currentUser.points < reward.points}
                       className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Resgatar
