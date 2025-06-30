@@ -19,9 +19,9 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     // Initialize mock data in localStorage if not exists
     if (!localStorage.getItem('orakle_users')) {
       const mockUsers = [
-        { id: '1', userType: 'colaborador', username: 'colaborador', password: '123', name: 'Ana Silva', role: 'Analista', team: 'Vendas', teamId: '1', points: 1500 },
-        { id: '2', userType: 'supervisor', username: 'supervisor', password: '123', name: 'Carlos Santos', role: 'Supervisor', team: 'Vendas', teamId: '1', points: 2800 },
-        { id: '3', userType: 'admin', username: 'admin', password: '123', name: 'Maria Oliveira', role: 'Administrador', team: 'Gestão', teamId: '2', points: 5000 }
+        { id: '1', userType: 'colaborador', username: 'colaborador', password: '123', name: 'Ana Silva', role: 'Analista', team: 'Vendas', teamId: '1', points: 1500, profilePicture: '' },
+        { id: '2', userType: 'supervisor', username: 'supervisor', password: '123', name: 'Carlos Santos', role: 'Supervisor', team: 'Vendas', teamId: '1', points: 2800, profilePicture: '' },
+        { id: '3', userType: 'admin', username: 'admin', password: '123', name: 'Maria Oliveira', role: 'Administrador', team: 'Gestão', teamId: '2', points: 5000, profilePicture: '' }
       ];
       localStorage.setItem('orakle_users', JSON.stringify(mockUsers));
       

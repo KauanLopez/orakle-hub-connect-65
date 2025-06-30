@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, MapPin, Calendar, TrendingUp } from 'lucide-react';
+import { User, MapPin, Calendar, TrendingUp, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfilePageProps {
   user: any;
@@ -10,6 +14,9 @@ interface ProfilePageProps {
 const ProfilePage = ({ user }: ProfilePageProps) => {
   const [currentUser, setCurrentUser] = useState(user);
   const [pointsHistory, setPointsHistory] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -24,13 +31,44 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    handleStorageChange(); // Initial load
+    handleStorageChange();
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [user.id]);
 
+  const handleProfilePictureChange = () => {
+    const updatedUser = { ...currentUser, profilePicture: newImageUrl };
+    
+    const allUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+    const updatedUsers = allUsers.map((u: any) => 
+      u.id === currentUser.id ? updatedUser : u
+    );
+    
+    localStorage.setItem('orakle_users', JSON.stringify(updatedUsers));
+    localStorage.setItem('orakle_current_user', JSON.stringify(updatedUser));
+    
+    setCurrentUser(updatedUser);
+    setIsModalOpen(false);
+    setNewImageUrl('');
+    toast({
+      title: "Sucesso!",
+      description: "Sua foto de perfil foi atualizada.",
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
   const totalGained = pointsHistory
     .filter(h => h.type === 'gain')
     .reduce((sum, h) => sum + h.amount, 0);
@@ -45,8 +83,38 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
       <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
         <CardHeader>
           <CardTitle className="flex items-center space-x-3">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(59,130,246,0.4)]">
-              <User className="h-8 w-8 text-white" />
+            <div className="relative w-16 h-16">
+              {currentUser.profilePicture ? (
+                <img src={currentUser.profilePicture} alt="Foto de Perfil" className="w-16 h-16 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(59,130,246,0.4)]">
+                  <User className="h-8 w-8 text-white" />
+                </div>
+              )}
+              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Alterar Foto de Perfil</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Input 
+                      placeholder="URL da imagem"
+                      value={newImageUrl}
+                      onChange={(e) => setNewImageUrl(e.target.value)}
+                    />
+                    <div>
+                      <label htmlFor="file-upload" className="text-sm font-medium">Ou envie um arquivo</label>
+                      <Input id="file-upload" type="file" onChange={handleFileChange} accept="image/*" />
+                    </div>
+                    <Button onClick={handleProfilePictureChange}>Salvar</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-800">{currentUser.name}</h2>
