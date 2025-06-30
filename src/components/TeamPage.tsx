@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTeamData } from '@/hooks/useTeamData';
 import TeamSelector from '@/components/team/TeamSelector';
@@ -26,17 +25,24 @@ const TeamPage = ({ user }: TeamPageProps) => {
 
   const getCurrentTeamMembers = () => {
     if (user.userType === 'admin') {
-      return selectedTeam ? users.filter((u: any) => u.teamId === selectedTeam) : users;
+      if (!selectedTeam) {
+        return [];
+      }
+      return users.filter((u) => u.teamId === selectedTeam);
     }
-    return users.filter((u: any) => u.teamId === user.teamId);
+    return users.filter((u) => u.teamId === user.teamId);
   };
 
   const getTeamTitle = () => {
-    if (user.userType === 'admin' && selectedTeam) {
-      const team = teams.find((t: any) => t.id === selectedTeam);
-      return `Membros - ${team?.name}`;
+    if (user.userType === 'admin') {
+      if (selectedTeam) {
+        const team = teams.find((t) => t.id === selectedTeam);
+        return `Membros - ${team?.name || ''}`;
+      }
+      return 'Selecione uma equipe para ver os membros';
     }
-    return 'Membros da Equipe';
+    const team = teams.find((t) => t.id === user.teamId);
+    return `Membros - ${team?.name || 'da sua equipe'}`;
   };
 
   return (
