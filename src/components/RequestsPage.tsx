@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,7 @@ const RequestsPage = ({ user }: RequestsPageProps) => {
   const [teammates, setTeammates] = useState<any[]>([]);
   const [newRequestType, setNewRequestType] = useState('');
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
+  const [isRequestTypeModalOpen, setIsRequestTypeModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,7 +73,7 @@ const RequestsPage = ({ user }: RequestsPageProps) => {
   };
 
   const handleStatusChange = (requestId: number, newStatus: 'approved' | 'rejected') => {
-    setRequests(prev => prev.map(req => 
+    setRequests(prev => prev.map(req =>
       req.id === requestId ? { ...req, status: newStatus } : req
     ));
     
@@ -186,30 +186,43 @@ const RequestsPage = ({ user }: RequestsPageProps) => {
         <h1 className="text-3xl font-bold text-slate-800">Solicitações</h1>
         
         {user.userType === 'colaborador' && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                setNewRequestType('general');
-                setShowNewRequestModal(true);
-              }}
-              className="rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_4px_12px_rgba(59,130,246,0.4)]"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              <FileText className="h-4 w-4 mr-2" />
-              Geral
-            </Button>
-            <Button
-              onClick={() => {
-                setNewRequestType('schedule');
-                setShowNewRequestModal(true);
-              }}
-              className="rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_4px_12px_rgba(34,197,94,0.4)]"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              <Calendar className="h-4 w-4 mr-2" />
-              Troca de Horário
-            </Button>
-          </div>
+          <Dialog open={isRequestTypeModalOpen} onOpenChange={setIsRequestTypeModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_4px_12px_rgba(59,130,246,0.4)]">
+                <Plus className="h-4 w-4 mr-2" />
+                Solicitar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-3xl border-0 bg-white/95 backdrop-blur-sm max-w-md">
+              <DialogHeader>
+                <DialogTitle>Selecione o tipo de solicitação</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 pt-4">
+                <Button
+                  onClick={() => {
+                    setNewRequestType('general');
+                    setIsRequestTypeModalOpen(false);
+                    setShowNewRequestModal(true);
+                  }}
+                  className="rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_4px_12px_rgba(59,130,246,0.4)]"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Geral
+                </Button>
+                <Button
+                  onClick={() => {
+                    setNewRequestType('schedule');
+                    setIsRequestTypeModalOpen(false);
+                    setShowNewRequestModal(true);
+                  }}
+                  className="rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_4px_12px_rgba(34,197,94,0.4)]"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Troca de Horário
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
