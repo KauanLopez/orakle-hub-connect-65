@@ -18,7 +18,7 @@ const HomePage = ({ user }: HomePageProps) => {
   const [isCarouselModalOpen, setIsCarouselModalOpen] = useState(false);
   const [isAlignmentModalOpen, setIsAlignmentModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [newCarouselItem, setNewCarouselItem] = useState({ title: '', content: '', image: '' });
+  const [newCarouselItem, setNewCarouselItem] = useState({ title: '', content: '', image: '', titleColor: '#000000', contentColor: '#000000' });
   const [newAlignment, setNewAlignment] = useState('');
   const { toast } = useToast();
 
@@ -35,13 +35,17 @@ const HomePage = ({ user }: HomePageProps) => {
           id: 1,
           title: 'Bem-vindos ao Orakle!',
           content: 'Sua nova plataforma de gestão de colaboradores está aqui. Explore todas as funcionalidades disponíveis.',
-          image: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=400&fit=crop'
+          image: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=400&fit=crop',
+          titleColor: '#000000',
+          contentColor: '#000000'
         },
         {
           id: 2,
           title: 'Novos Recursos Disponíveis',
           content: 'Confira os jogos interativos e o sistema de premiações para engajar sua equipe.',
-          image: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&h=400&fit=crop'
+          image: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&h=400&fit=crop',
+          titleColor: '#000000',
+          contentColor: '#000000'
         }
       ];
       localStorage.setItem('orakle_carousel', JSON.stringify(defaultCarousel));
@@ -98,7 +102,7 @@ const HomePage = ({ user }: HomePageProps) => {
 
     setCarouselItems(updatedItems);
     localStorage.setItem('orakle_carousel', JSON.stringify(updatedItems));
-    setNewCarouselItem({ title: '', content: '', image: '' });
+    setNewCarouselItem({ title: '', content: '', image: '', titleColor: '#000000', contentColor: '#000000' });
     setEditingItem(null);
     setIsCarouselModalOpen(false);
     
@@ -166,7 +170,7 @@ const HomePage = ({ user }: HomePageProps) => {
                   className="rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-[0_4px_12px_rgba(59,130,246,0.4)]"
                   onClick={() => {
                     setEditingItem(null);
-                    setNewCarouselItem({ title: '', content: '', image: '' });
+                    setNewCarouselItem({ title: '', content: '', image: '', titleColor: '#000000', contentColor: '#000000' });
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -196,6 +200,28 @@ const HomePage = ({ user }: HomePageProps) => {
                     onChange={(e) => setNewCarouselItem({ ...newCarouselItem, image: e.target.value })}
                     className="rounded-xl border-0 bg-slate-100/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
                   />
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <label htmlFor="titleColor" className="text-sm font-medium">Cor do Título</label>
+                      <Input
+                        id="titleColor"
+                        type="color"
+                        value={newCarouselItem.titleColor}
+                        onChange={(e) => setNewCarouselItem({ ...newCarouselItem, titleColor: e.target.value })}
+                        className="w-20 h-10"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="contentColor" className="text-sm font-medium">Cor da Descrição</label>
+                      <Input
+                        id="contentColor"
+                        type="color"
+                        value={newCarouselItem.contentColor}
+                        onChange={(e) => setNewCarouselItem({ ...newCarouselItem, contentColor: e.target.value })}
+                        className="w-20 h-10"
+                      />
+                    </div>
+                  </div>
                   <Button
                     onClick={handleSaveCarouselItem}
                     className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
@@ -219,10 +245,10 @@ const HomePage = ({ user }: HomePageProps) => {
                   />
                 )}
                 <div className="relative p-8 flex flex-col justify-center min-h-[300px]">
-                  <h3 className="text-2xl font-bold text-slate-800 mb-4">
+                  <h3 className="text-2xl font-bold mb-4" style={{ color: carouselItems[currentSlide]?.titleColor }}>
                     {carouselItems[currentSlide]?.title}
                   </h3>
-                  <p className="text-slate-700 text-lg leading-relaxed">
+                  <p className="text-lg leading-relaxed" style={{ color: carouselItems[currentSlide]?.contentColor }}>
                     {carouselItems[currentSlide]?.content}
                   </p>
                   
