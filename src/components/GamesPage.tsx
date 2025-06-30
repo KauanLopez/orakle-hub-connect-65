@@ -18,6 +18,7 @@ const GamesPage = ({ user }: GamesPageProps) => {
   const [playingGame, setPlayingGame] = useState<any>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [currentAnswers, setCurrentAnswers] = useState<any[]>([]);
   const [gameResults, setGameResults] = useState<any>(null);
   const [quizRating, setQuizRating] = useState(0);
   const [quizComment, setQuizComment] = useState('');
@@ -116,6 +117,7 @@ const GamesPage = ({ user }: GamesPageProps) => {
     setCurrentQuestionIndex(0);
     setSelectedAnswer('');
     setGameResults(null);
+    setCurrentAnswers([]);
   };
 
   const submitAnswer = () => {
@@ -123,37 +125,30 @@ const GamesPage = ({ user }: GamesPageProps) => {
 
     const isCorrect = parseInt(selectedAnswer) === playingGame.questions[currentQuestionIndex].correctOption;
     
-    const currentAnswers = gameResults ? gameResults.answers : [];
     const updatedAnswers = [...currentAnswers, { questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect }];
-
-    const updatedResults = {
-      gameId: playingGame.id,
-      answers: updatedAnswers
-    };
-
-    setGameResults(updatedResults);
+    setCurrentAnswers(updatedAnswers);
 
     if (currentQuestionIndex < playingGame.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer('');
     } else {
-      finishGame(updatedResults);
+      finishGame(updatedAnswers);
     }
   };
 
-  const finishGame = (finalResults: any) => {
-    if (!playingGame || !finalResults) return;
+  const finishGame = (finalAnswers: any[]) => {
+    if (!playingGame || !finalAnswers) return;
 
-    const correctAnswers = finalResults.answers.filter((a: any) => a.isCorrect).length;
+    const correctAnswers = finalAnswers.filter((a: any) => a.isCorrect).length;
     const totalPoints = (correctAnswers * playingGame.pointsPerCorrect) + playingGame.pointsPerParticipation;
     
     // Atualizar pontos do usuário
-    const currentUser = JSON.parse(localStorage.getItem('orakle_current_user') || '{}');
+    const currentUserData = JSON.parse(localStorage.getItem('orakle_current_user') || '{}');
     const allUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
     
-    const updatedUser = { ...currentUser, points: (currentUser.points || 0) + totalPoints };
+    const updatedUser = { ...currentUserData, points: (currentUserData.points || 0) + totalPoints };
     const updatedUsers = allUsers.map((u: any) => 
-      u.id === currentUser.id ? updatedUser : u
+      u.id === currentUserData.id ? updatedUser : u
     );
     
     localStorage.setItem('orakle_current_user', JSON.stringify(updatedUser));
@@ -175,7 +170,12 @@ const GamesPage = ({ user }: GamesPageProps) => {
     gameHistory.push(result);
     localStorage.setItem('orakle_game_history', JSON.stringify(gameHistory));
 
-    setGameResults({ ...finalResults, correctAnswers, totalPoints });
+    setGameResults({ 
+      gameId: playingGame.id,
+      answers: finalAnswers, 
+      correctAnswers, 
+      totalPoints 
+    });
   };
 
   const submitRating = () => {
@@ -187,8 +187,8 @@ const GamesPage = ({ user }: GamesPageProps) => {
           ...game,
           statistics: {
             ...game.statistics,
-            ratings: [...game.statistics.ratings, { userId: user.id, rating: quizRating }],
-            comments: quizComment ? [...game.statistics.comments, { userId: user.id, comment: quizComment }] : game.statistics.comments
+            ratings: [...(game.statistics.ratings || []), { userId: user.id, rating: quizRating }],
+            comments: quizComment ? [...(game.statistics.comments || []), { userId: user.id, comment: quizComment }] : game.statistics.comments || []
           }
         };
       }
