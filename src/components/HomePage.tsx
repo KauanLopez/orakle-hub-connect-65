@@ -133,7 +133,7 @@ const HomePage = ({ user }: HomePageProps) => {
       return;
     }
 
-    const updatedAlignments = [...alignments, newAlignment];
+    const updatedAlignments = [newAlignment, ...alignments];
     setAlignments(updatedAlignments);
     localStorage.setItem('orakle_alignments', JSON.stringify(updatedAlignments));
     setNewAlignment('');
