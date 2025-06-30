@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -124,30 +123,28 @@ const GamesPage = ({ user }: GamesPageProps) => {
 
     const isCorrect = parseInt(selectedAnswer) === playingGame.questions[currentQuestionIndex].correctOption;
     
-    if (gameResults) {
-      setGameResults({
-        ...gameResults,
-        answers: [...gameResults.answers, { questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect }]
-      });
-    } else {
-      setGameResults({
-        gameId: playingGame.id,
-        answers: [{ questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect }]
-      });
-    }
+    const currentAnswers = gameResults ? gameResults.answers : [];
+    const updatedAnswers = [...currentAnswers, { questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect }];
+
+    const updatedResults = {
+      gameId: playingGame.id,
+      answers: updatedAnswers
+    };
+
+    setGameResults(updatedResults);
 
     if (currentQuestionIndex < playingGame.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer('');
     } else {
-      finishGame();
+      finishGame(updatedResults);
     }
   };
 
-  const finishGame = () => {
-    if (!playingGame || !gameResults) return;
+  const finishGame = (finalResults: any) => {
+    if (!playingGame || !finalResults) return;
 
-    const correctAnswers = gameResults.answers.filter((a: any) => a.isCorrect).length;
+    const correctAnswers = finalResults.answers.filter((a: any) => a.isCorrect).length;
     const totalPoints = (correctAnswers * playingGame.pointsPerCorrect) + playingGame.pointsPerParticipation;
     
     // Atualizar pontos do usuário
@@ -178,7 +175,7 @@ const GamesPage = ({ user }: GamesPageProps) => {
     gameHistory.push(result);
     localStorage.setItem('orakle_game_history', JSON.stringify(gameHistory));
 
-    setGameResults({ ...gameResults, correctAnswers, totalPoints });
+    setGameResults({ ...finalResults, correctAnswers, totalPoints });
   };
 
   const submitRating = () => {
