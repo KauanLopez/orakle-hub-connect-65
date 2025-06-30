@@ -151,20 +151,6 @@ const CalendarPage = ({ user }: CalendarPageProps) => {
             <Button type="submit" className="flex-1 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600">
               {editingEvent ? 'Atualizar' : 'Criar'} Evento
             </Button>
-            {editingEvent && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  handleDeleteEvent(editingEvent.id);
-                  setShowEventModal(false);
-                  setEditingEvent(null);
-                }}
-                className="rounded-2xl border-red-200 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </form>
       </DialogContent>
@@ -198,7 +184,7 @@ const CalendarPage = ({ user }: CalendarPageProps) => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl text-slate-800">
-                  {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                  {format(currentDate, 'MMMM yy', { locale: ptBR })}
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button
@@ -311,18 +297,28 @@ const CalendarPage = ({ user }: CalendarPageProps) => {
                           </div>
                           
                           {(user.userType === 'supervisor' || user.userType === 'admin') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 rounded-lg hover:bg-white/50"
-                              onClick={() => {
-                                setSelectedDate(event.date);
-                                setEditingEvent(event);
-                                setShowEventModal(true);
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 rounded-lg hover:bg-white/50"
+                                onClick={() => {
+                                  setSelectedDate(event.date);
+                                  setEditingEvent(event);
+                                  setShowEventModal(true);
+                                }}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 rounded-lg text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
