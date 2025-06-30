@@ -244,7 +244,7 @@ const HomePage = ({ user }: HomePageProps) => {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 )}
-                <div className="relative p-8 flex flex-col justify-center min-h-[300px]">
+                <div className="relative py-8 px-20 flex flex-col justify-center min-h-[300px]">
                   <h3 className="text-2xl font-bold mb-4" style={{ color: carouselItems[currentSlide]?.titleColor }}>
                     {carouselItems[currentSlide]?.title}
                   </h3>
