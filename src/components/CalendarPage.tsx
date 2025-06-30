@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Edit, Trash2 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
@@ -58,7 +57,9 @@ const CalendarPage = ({ user }: CalendarPageProps) => {
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart, { locale: ptBR });
+  const calendarEnd = endOfWeek(monthEnd, { locale: ptBR });
+  const monthDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getEventsForDate = (date: Date) => {
     return events.filter(event => isSameDay(event.date, date));
@@ -233,29 +234,31 @@ const CalendarPage = ({ user }: CalendarPageProps) => {
                 {monthDays.map(day => {
                   const dayEvents = getEventsForDate(day);
                   const hasEvents = dayEvents.length > 0;
+                  const isCurrentMonth = isSameMonth(day, currentDate);
                   
                   return (
                     <div
                       key={day.toISOString()}
                       className={`
                         relative p-2 h-16 rounded-xl border-2 transition-all duration-200 cursor-pointer
-                        ${hasEvents 
+                        ${!isCurrentMonth ? 'bg-slate-50/50 text-slate-400' :
+                          hasEvents 
                           ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' 
                           : 'bg-white/50 border-slate-200 hover:bg-white/80'
                         }
                       `}
                       onClick={() => {
-                        if (user.userType === 'supervisor' || user.userType === 'admin') {
+                        if ((user.userType === 'supervisor' || user.userType === 'admin') && isCurrentMonth) {
                           setSelectedDate(day);
                           setEditingEvent(null);
                           setShowEventModal(true);
                         }
                       }}
                     >
-                      <div className="text-sm font-medium text-slate-700">
+                      <div className="text-sm font-medium">
                         {format(day, 'd')}
                       </div>
-                      {hasEvents && (
+                      {hasEvents && isCurrentMonth && (
                         <div className="absolute bottom-1 left-1 right-1">
                           <div className="h-1 bg-blue-500 rounded-full"></div>
                           <div className="text-xs text-blue-600 mt-1 truncate">
