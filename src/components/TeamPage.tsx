@@ -42,7 +42,7 @@ const TeamPage = ({ user }: TeamPageProps) => {
       return 'Selecione uma equipe para ver os membros';
     }
     const team = teams.find((t) => t.id === user.teamId);
-    return `Membros - ${team?.name || 'da sua equipe'}`;
+    return team ? `Membros - ${team.name}` : 'Membros da sua equipe';
   };
 
   return (
