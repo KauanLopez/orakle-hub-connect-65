@@ -25,6 +25,13 @@ const RewardsPage = ({ user: initialUser }: RewardsPageProps) => {
 
   useEffect(() => {
     loadData();
+    const handleStorageChange = () => {
+      loadData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [initialUser.id]);
 
   const loadData = () => {
@@ -92,8 +99,9 @@ const RewardsPage = ({ user: initialUser }: RewardsPageProps) => {
   };
 
   const redeemReward = (reward: any) => {
-    if (currentUser.points >= reward.cost) {
-      const newPoints = currentUser.points - reward.cost;
+    const userPoints = currentUser.points || 0;
+    if (userPoints >= reward.points) {
+      const newPoints = userPoints - reward.points;
       
       const updatedUser = { ...currentUser, points: newPoints };
       setCurrentUser(updatedUser);
@@ -126,7 +134,7 @@ const RewardsPage = ({ user: initialUser }: RewardsPageProps) => {
     } else {
       toast({
         title: "Pontos insuficientes",
-        description: `Você precisa de ${reward.points} pontos para resgatar este prêmio. Você tem ${currentUser.points} pontos.`,
+        description: `Você precisa de ${reward.points} pontos para resgatar este prêmio. Você tem ${userPoints} pontos.`,
         variant: "destructive"
       });
     }
