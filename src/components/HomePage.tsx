@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -211,12 +210,12 @@ const HomePage = ({ user }: HomePageProps) => {
         <CardContent>
           {carouselItems.length > 0 ? (
             <div className="relative">
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-100 to-indigo-100 min-h-[300px]">
+              <div className="relative overflow-hidden rounded-2xl min-h-[300px]">
                 {carouselItems[currentSlide]?.image && (
                   <img
                     src={carouselItems[currentSlide].image}
                     alt={carouselItems[currentSlide].title}
-                    className="absolute inset-0 w-full h-full object-cover opacity-20"
+                    className="absolute inset-0 w-full h-full object-cover"
                   />
                 )}
                 <div className="relative p-8 flex flex-col justify-center min-h-[300px]">
