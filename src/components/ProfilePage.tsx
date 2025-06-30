@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,50 +8,28 @@ interface ProfilePageProps {
 }
 
 const ProfilePage = ({ user }: ProfilePageProps) => {
+  const [currentUser, setCurrentUser] = useState(user);
   const [pointsHistory, setPointsHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    // Load points history from localStorage
-    const storedHistory = JSON.parse(localStorage.getItem('orakle_points_history') || '[]');
-    
-    if (storedHistory.length === 0) {
-      // Create mock points history
-      const mockHistory = [
-        {
-          id: 1,
-          type: 'gain',
-          amount: 100,
-          description: 'Completou perfil',
-          date: new Date().toISOString()
-        },
-        {
-          id: 2,
-          type: 'gain',
-          amount: 50,
-          description: 'Participação no Quiz de Segurança',
-          date: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          id: 3,
-          type: 'loss',
-          amount: 200,
-          description: 'Resgate: Mousepad Personalizado',
-          date: new Date(Date.now() - 172800000).toISOString()
-        },
-        {
-          id: 4,
-          type: 'gain',
-          amount: 75,
-          description: 'Meta mensal atingida',
-          date: new Date(Date.now() - 259200000).toISOString()
-        }
-      ];
-      localStorage.setItem('orakle_points_history', JSON.stringify(mockHistory));
-      setPointsHistory(mockHistory);
-    } else {
+    const handleStorageChange = () => {
+      const storedUsers = JSON.parse(localStorage.getItem('orakle_users') || '[]');
+      const updatedUser = storedUsers.find((u: any) => u.id === user.id);
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+      }
+
+      const storedHistory = JSON.parse(localStorage.getItem('orakle_points_history') || '[]');
       setPointsHistory(storedHistory);
-    }
-  }, []);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    handleStorageChange(); // Initial load
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user.id]);
 
   const totalGained = pointsHistory
     .filter(h => h.type === 'gain')
@@ -72,8 +49,8 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
               <User className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-800">{user.name}</h2>
-              <p className="text-slate-600">{user.role}</p>
+              <h2 className="text-2xl font-bold text-slate-800">{currentUser.name}</h2>
+              <p className="text-slate-600">{currentUser.role}</p>
             </div>
           </CardTitle>
         </CardHeader>
@@ -82,7 +59,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
             <MapPin className="h-5 w-5 text-blue-600" />
             <div>
               <p className="text-sm text-slate-600">Equipe</p>
-              <p className="font-semibold text-slate-800">{user.team}</p>
+              <p className="font-semibold text-slate-800">{currentUser.team}</p>
             </div>
           </div>
           
@@ -90,7 +67,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
             <TrendingUp className="h-5 w-5 text-green-600" />
             <div>
               <p className="text-sm text-slate-600">Pontos Atuais</p>
-              <p className="font-semibold text-slate-800">{user.points}</p>
+              <p className="font-semibold text-slate-800">{currentUser.points}</p>
             </div>
           </div>
           
@@ -99,7 +76,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
             <div>
               <p className="text-sm text-slate-600">Nível</p>
               <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
-                {user.userType.charAt(0).toUpperCase() + user.userType.slice(1)}
+                {currentUser.userType.charAt(0).toUpperCase() + currentUser.userType.slice(1)}
               </Badge>
             </div>
           </div>
@@ -123,7 +100,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
             </div>
             <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
               <span className="text-slate-700">Saldo Atual</span>
-              <span className="font-bold text-blue-600">{user.points}</span>
+              <span className="font-bold text-blue-600">{currentUser.points}</span>
             </div>
           </CardContent>
         </Card>
@@ -135,7 +112,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
           <CardContent className="space-y-4">
             <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-2xl">
               <p className="text-sm text-slate-600 mb-1">Nome Fictício</p>
-              <p className="font-semibold text-slate-800">Usuário{user.name.split(' ')[0]}</p>
+              <p className="font-semibold text-slate-800">Usuário{currentUser.name.split(' ')[0]}</p>
             </div>
             <div className="p-4 bg-gradient-to-r from-slate-50 to-purple-50 rounded-2xl">
               <p className="text-sm text-slate-600 mb-1">Data de Entrada</p>
@@ -143,7 +120,7 @@ const ProfilePage = ({ user }: ProfilePageProps) => {
             </div>
             <div className="p-4 bg-gradient-to-r from-slate-50 to-orange-50 rounded-2xl">
               <p className="text-sm text-slate-600 mb-1">Departamento</p>
-              <p className="font-semibold text-slate-800">{user.team}</p>
+              <p className="font-semibold text-slate-800">{currentUser.team}</p>
             </div>
           </CardContent>
         </Card>

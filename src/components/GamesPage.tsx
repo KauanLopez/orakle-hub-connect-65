@@ -170,6 +170,17 @@ const GamesPage = ({ user }: GamesPageProps) => {
     gameHistory.push(result);
     localStorage.setItem('orakle_game_history', JSON.stringify(gameHistory));
 
+    const pointsHistory = JSON.parse(localStorage.getItem('orakle_points_history') || '[]');
+    const pointsEntry = {
+      id: Date.now(),
+      type: 'gain',
+      amount: totalPoints,
+      description: `Quiz: ${playingGame.name}`,
+      date: new Date().toISOString()
+    };
+    pointsHistory.push(pointsEntry);
+    localStorage.setItem('orakle_points_history', JSON.stringify(pointsHistory));
+
     setGameResults({ 
       gameId: playingGame.id,
       answers: finalAnswers, 
