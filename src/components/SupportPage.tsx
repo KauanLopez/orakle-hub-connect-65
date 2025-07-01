@@ -139,7 +139,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id };
+    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
     localStorage.setItem('orakle_knowledge_base_v2', JSON.stringify(updatedKnowledge));
@@ -210,9 +210,12 @@ const SupportPage = ({ user }: SupportPageProps) => {
             </div>
             <div className="mt-6 space-y-2">
               {knowledgeBase.map(doc => (
-                <div key={doc.id} className="p-3 rounded-xl border flex justify-between items-center">
-                  <span>{doc.title}</span>
-                  <Button size="sm" variant="ghost" onClick={() => deleteKnowledge(doc.id)}><Trash2 className="h-4 w-4"/></Button>
+                <div key={doc.id} className="p-3 rounded-xl border">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">{doc.title}</span>
+                    <Button size="sm" variant="ghost" onClick={() => deleteKnowledge(doc.id)}><Trash2 className="h-4 w-4"/></Button>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">{doc.content}</p>
                 </div>
               ))}
             </div>
