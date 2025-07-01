@@ -2,19 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageCircle, Plus, ThumbsUp, ThumbsDown, Bot, User, Edit, Trash2, BarChart3, Star, BrainCircuit } from 'lucide-react';
+import { MessageCircle, Plus, Bot, User, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BrainCircuit } from 'lucide-react';
 
 const API_KEY = "AIzaSyADUR6WT2Zr4Wj01cJh45XQ-T5tmF0KH4c";
 
 const defaultPromptTemplate = `
-Você é o Orakle Assist, um assistente de suporte virtual amigável e prestativo da empresa Orakle. Sua principal função é ajudar os colaboradores a tirar dúvidas sobre os processos internos da empresa. Seja sempre cordial, profissional e vá direto ao ponto.
+# Persona e Objetivo
+Você é um assistente virtual especialista nos processos acadêmicos da Unicesumar. Sua missão é responder às dúvidas dos alunos de forma clara, direta e amigável.
 
-Use exclusivamente a informação fornecida abaixo no campo 'Contexto' para formular sua resposta. Não adicione nenhuma informação que não esteja neste contexto.
+# Tom e Estilo
+- Comece a resposta indo direto ao ponto, sem usar saudações como "Olá, tudo bem?".
+- Adote um tom humanizado e didático, como se estivesse explicando para um colega.
+- Utilize exemplos práticos ou analogias simples para clarificar conceitos complexos.
+- O uso de emojis é permitido AS VEZES, mas de forma sutil e apropriada, para tornar a comunicação mais leve (ex: 😉, 📚, ✅).
 
-Se a informação no 'Contexto' não for suficiente para responder à pergunta do usuário, ou se a pergunta não tiver relação com o contexto, responda de forma educada que você não encontrou a informação e sugira que o usuário procure o supervisor dele para mais detalhes. Nunca invente uma resposta.
+# Regras de Execução
+1.  **Fonte da Verdade:** Baseie sua resposta **exclusivamente** no "Contexto" fornecido abaixo. Não utilize nenhum conhecimento externo.
+2.  **Foco na Pergunta:** Responda apenas o que foi perguntado pelo usuário, usando as informações do contexto.
+3.  **Tratamento de Exceção:** Se o contexto não contiver a informação necessária para responder à pergunta do usuário, ou se a pergunta não tiver relação com o contexto, informe de maneira educada: "Não encontrei informações sobre isso. Para mais detalhes, por favor, entre em contato com o seu polo de apoio ou com a coordenação do seu curso." Não invente respostas.
 `;
 
 interface SupportPageProps {
@@ -45,20 +53,8 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
-    let storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v5') || '[]');
+    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v7') || '[]');
     const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
-
-    if (!storedKnowledge || storedKnowledge.length === 0) {
-      storedKnowledge = [
-        {
-          id: '1',
-          title: 'Disciplinas de dependencia em cursos técnicos',
-          content: "Disciplinas de dependência O aluno deverá obter média igual ou superior a 6,0 (seis) em cada disciplina para ser considera aprovado. Caso não tenha conseguido a média suficiente, o aluno é considerado reprovado na disciplina, ficando em dependência (DP). As disciplinas dependência são fornecidas quando o módulo de origem da mesma for ofertado novamente, ou seja, caso o aluno reprove na disciplina 1, constituinte do módulo 91/2023, ele conseguirá realiza-la novamente no módulo 91/2024. Ainda, todos os alunos que forem matriculados em regime de DP terão os mesmos critérios para estudo de uma disciplina curricular, ou seja, farão todas as atividades pertinentes a uma disciplina em regime curricular e a prova com valor de acordo com a grade do curso. Importante: • Se o aluno reprovar independentemente se realizou atividade pedagógica ou não, a disciplina voltará a ser ofertada novamente em regime de dependência; • O serviço de oferecimento das disciplinas de dependência",
-          embedding: null 
-        }
-      ];
-      localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(storedKnowledge));
-    }
 
     setMessages(storedMessages);
     setKnowledgeBase(storedKnowledge);
@@ -87,21 +83,23 @@ const SupportPage = ({ user }: SupportPageProps) => {
   };
 
   const findMostRelevantContext = async (question: string) => {
-    if (knowledgeBase.length === 0) return "Base de conhecimento vazia.";
-  
+    if (knowledgeBase.length === 0) return "A base de conhecimento está vazia.";
+    
+    const indexedDocs = knowledgeBase.filter(doc => doc.embedding);
+    if (indexedDocs.length === 0) return "A base de conhecimento não foi indexada. Peça a um administrador para indexar a base.";
+
     try {
       const questionEmbedding = await getEmbedding(question);
   
-      const rankedDocs = knowledgeBase
-        .filter(doc => doc.embedding)
+      const rankedDocs = indexedDocs
         .map(doc => {
           const score = dotProduct(questionEmbedding, doc.embedding);
           return { ...doc, score };
         })
         .sort((a, b) => b.score - a.score);
   
-      if (rankedDocs.length === 0 || rankedDocs[0].score < 0.7) {
-        return "Não encontrei informações sobre sua pergunta.";
+      if (rankedDocs[0].score < 0.7) { // Limiar de confiança
+        return "Não encontrei informações sobre sua pergunta na base de conhecimento.";
       }
       
       return rankedDocs[0].content;
@@ -122,7 +120,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
     const context = await findMostRelevantContext(question);
 
-    const fullPrompt = `${promptTemplate}\n\n---Contexto: "${context}"\n\n---Pergunta do Usuário: "${question}"\n\n---Resposta:`;
+    const fullPrompt = `${promptTemplate}\n\n---Contexto Fornecido:\n${context}\n\n---Pergunta do Usuário:\n${question}\n\n---Resposta:`;
 
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
@@ -136,7 +134,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
       if (!response.ok) throw new Error(data?.error?.message || `API request failed with status ${response.status}`);
       
       const aiResponseText = data.candidates[0].content.parts[0].text;
-      const aiMessage = { id: (Date.now() + 1).toString(), text: aiResponseText, sender: 'ai', timestamp: new Date().toISOString(), canRate: true };
+      const aiMessage = { id: (Date.now() + 1).toString(), text: aiResponseText.trim(), sender: 'ai', timestamp: new Date().toISOString(), canRate: true };
 
       setMessages(prev => [...prev, aiMessage]);
       localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify([...messages, userMessage, aiMessage]));
@@ -150,36 +148,39 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
+    const knowledge = { id: Date.now().toString(), ...newKnowledge, embedding: null };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v7', JSON.stringify(updatedKnowledge));
     setNewKnowledge({ title: '', content: '' });
-    toast({ title: "Conhecimento adicionado", description: "Lembre-se de re-indexar a base para que a IA aprenda sobre este novo item." });
+    toast({ title: "Conhecimento adicionado", description: "Clique em 'Indexar' para que a IA aprenda este novo conteúdo." });
   };
   
   const deleteKnowledge = (knowledgeId: string) => {
     const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
-    toast({ title: "Conhecimento removido", description: "Lembre-se de re-indexar a base." });
+    localStorage.setItem('orakle_knowledge_base_v7', JSON.stringify(updatedKnowledge));
+    toast({ title: "Conhecimento removido" });
   };
   
   const indexKnowledgeBase = async () => {
     setIsIndexing(true);
-    toast({ title: "Iniciando indexação...", description: "A IA está aprendendo os conteúdos. Isso pode levar um momento." });
+    toast({ title: "Iniciando indexação...", description: "A IA está aprendendo cada documento. Isso pode demorar um pouco." });
     
     try {
-      const updatedKnowledgeBase = await Promise.all(
-        knowledgeBase.map(async (doc) => {
-          await new Promise(resolve => setTimeout(resolve, 4000)); // Rate limit
+      const updatedKnowledgeBase = [...knowledgeBase];
+      for (let i = 0; i < updatedKnowledgeBase.length; i++) {
+        const doc = updatedKnowledgeBase[i];
+        if (!doc.embedding) {
+          toast({ title: `Indexando ${i + 1}/${knowledgeBase.length}`, description: doc.title });
+          await new Promise(resolve => setTimeout(resolve, 4000));
           const textToEmbed = `${doc.title}\n${doc.content}`;
           const embedding = await getEmbedding(textToEmbed);
-          return { ...doc, embedding };
-        })
-      );
+          updatedKnowledgeBase[i] = { ...doc, embedding };
+          localStorage.setItem('orakle_knowledge_base_v7', JSON.stringify(updatedKnowledgeBase));
+        }
+      }
       setKnowledgeBase(updatedKnowledgeBase);
-      localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledgeBase));
       toast({ title: "Indexação Concluída!", description: "A IA aprendeu os novos conteúdos com sucesso." });
     } catch (error: any) {
       toast({ title: "Erro de Indexação", description: error.message, variant: "destructive" });
@@ -256,7 +257,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
         <CardContent>
           <div className="space-y-4 mb-6 max-h-96 overflow-y-auto p-2">
             {messages.length === 0 ? (
-              <div className="text-center py-8 text-slate-500"><Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" /><p>Olá! Como posso ajudá-lo hoje?</p></div>
+              <div className="text-center py-8 text-slate-500"><Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" /><p>Olá! Sou o assistente virtual da Orakle.</p></div>
             ) : messages.map(message => (
               <div key={message.id} className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${message.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
