@@ -35,7 +35,6 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const [knowledgeBase, setKnowledgeBase] = useState<any[]>([]);
   const [isManaging, setIsManaging] = useState(false);
   const [newKnowledge, setNewKnowledge] = useState({ title: '', content: '' });
-  const [editingKnowledge, setEditingKnowledge] = useState<any>(null);
   const [promptTemplate, setPromptTemplate] = useState(defaultPromptTemplate);
   const { toast } = useToast();
   const [isIndexing, setIsIndexing] = useState(false);
@@ -46,20 +45,8 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
-    let storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v4') || '[]');
+    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v5') || '[]');
     const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
-
-    if (!storedKnowledge || storedKnowledge.length === 0) {
-      storedKnowledge = [
-        {
-          id: '1',
-          title: 'Disciplinas de dependencia em cursos técnicos',
-          content: "Disciplinas de dependência O aluno deverá obter média igual ou superior a 6,0 (seis) em cada disciplina para ser considera aprovado. Caso não tenha conseguido a média suficiente, o aluno é considerado reprovado na disciplina, ficando em dependência (DP). As disciplinas dependência são fornecidas quando o módulo de origem da mesma for ofertado novamente, ou seja, caso o aluno reprove na disciplina 1, constituinte do módulo 91/2023, ele conseguirá realiza-la novamente no módulo 91/2024. Ainda, todos os alunos que forem matriculados em regime de DP terão os mesmos critérios para estudo de uma disciplina curricular, ou seja, farão todas as atividades pertinentes a uma disciplina em regime curricular e a prova com valor de acordo com a grade do curso. Importante: • Se o aluno reprovar independentemente se realizou atividade pedagógica ou não, a disciplina voltará a ser ofertada novamente em regime de dependência; • O serviço de oferecimento das disciplinas de dependência",
-          embedding: null 
-        }
-      ];
-      localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(storedKnowledge));
-    }
 
     setMessages(storedMessages);
     setKnowledgeBase(storedKnowledge);
@@ -88,13 +75,13 @@ const SupportPage = ({ user }: SupportPageProps) => {
   };
 
   const findMostRelevantContext = async (question: string) => {
-    if (knowledgeBase.length === 0) return "Base de conhecimento vazia.";
+    if (knowledgeBase.length === 0) return "Base de conhecimento está vazia.";
   
     try {
       const questionEmbedding = await getEmbedding(question);
   
       const rankedDocs = knowledgeBase
-        .filter(doc => doc.embedding)
+        .filter(doc => doc.embedding) // Apenas documentos que foram indexados
         .map(doc => {
           const score = dotProduct(questionEmbedding, doc.embedding);
           return { ...doc, score };
@@ -102,7 +89,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
         .sort((a, b) => b.score - a.score);
   
       if (rankedDocs.length === 0 || rankedDocs[0].score < 0.7) {
-        return "Não encontrei informações sobre sua pergunta.";
+        return "Não encontrei informações sobre sua pergunta na base de conhecimento.";
       }
       
       return rankedDocs[0].content;
@@ -154,7 +141,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
     const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
     setNewKnowledge({ title: '', content: '' });
     toast({ title: "Conhecimento adicionado", description: "Lembre-se de re-indexar a base para que a IA aprenda sobre este novo item." });
   };
@@ -162,7 +149,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const deleteKnowledge = (knowledgeId: string) => {
     const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
     toast({ title: "Conhecimento removido", description: "Lembre-se de re-indexar a base." });
   };
   
@@ -179,17 +166,13 @@ const SupportPage = ({ user }: SupportPageProps) => {
         })
       );
       setKnowledgeBase(updatedKnowledgeBase);
-      localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledgeBase));
+      localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledgeBase));
       toast({ title: "Indexação Concluída!", description: "A IA aprendeu os novos conteúdos com sucesso." });
     } catch (error: any) {
       toast({ title: "Erro de Indexação", description: error.message, variant: "destructive" });
     } finally {
       setIsIndexing(false);
     }
-  };
-  
-  const rateResponse = (messageId: string, helpful: boolean) => {
-    // ... (logic for rating)
   };
 
   const savePromptTemplate = () => {
