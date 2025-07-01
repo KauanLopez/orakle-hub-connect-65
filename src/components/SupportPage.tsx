@@ -21,14 +21,6 @@ interface SupportPageProps {
   user: any;
 }
 
-const dotProduct = (vecA: number[], vecB: number[]) => {
-  let product = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    product += vecA[i] * vecB[i];
-  }
-  return product;
-};
-
 const SupportPage = ({ user }: SupportPageProps) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -37,7 +29,6 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const [newKnowledge, setNewKnowledge] = useState({ title: '', content: '' });
   const [promptTemplate, setPromptTemplate] = useState(defaultPromptTemplate);
   const { toast } = useToast();
-  const [isIndexing, setIsIndexing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -45,7 +36,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
-    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v5') || '[]');
+    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v6') || '[]');
     const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
 
     setMessages(storedMessages);
@@ -59,46 +50,6 @@ const SupportPage = ({ user }: SupportPageProps) => {
   };
 
   const canManageKnowledge = user.userType === 'supervisor' || user.userType === 'admin';
-
-  const getEmbedding = async (text: string) => {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text }] } }),
-    });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData?.error?.message || "Falha ao gerar embedding.");
-    }
-    const data = await response.json();
-    return data.embedding.values;
-  };
-
-  const findMostRelevantContext = async (question: string) => {
-    if (knowledgeBase.length === 0) return "Base de conhecimento está vazia.";
-  
-    try {
-      const questionEmbedding = await getEmbedding(question);
-  
-      const rankedDocs = knowledgeBase
-        .filter(doc => doc.embedding) // Apenas documentos que foram indexados
-        .map(doc => {
-          const score = dotProduct(questionEmbedding, doc.embedding);
-          return { ...doc, score };
-        })
-        .sort((a, b) => b.score - a.score);
-  
-      if (rankedDocs.length === 0 || rankedDocs[0].score < 0.7) {
-        return "Não encontrei informações sobre sua pergunta na base de conhecimento.";
-      }
-      
-      return rankedDocs[0].content;
-      
-    } catch (error: any) {
-      toast({ title: "Erro na Busca Semântica", description: error.message, variant: "destructive" });
-      return "Ocorreu um erro ao tentar encontrar a resposta. Tente novamente.";
-    }
-  };
   
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -108,9 +59,12 @@ const SupportPage = ({ user }: SupportPageProps) => {
     const question = inputMessage;
     setInputMessage('');
 
-    const context = await findMostRelevantContext(question);
+    // Simplificação radical: Junta TODO o conhecimento em um único bloco de contexto.
+    const fullContext = knowledgeBase
+      .map(doc => `Título: ${doc.title}\nConteúdo: ${doc.content}`)
+      .join('\n\n---\n\n');
 
-    const fullPrompt = `${promptTemplate}\n\n---Contexto: "${context}"\n\n---Pergunta do Usuário: "${question}"\n\n---Resposta:`;
+    const fullPrompt = `${promptTemplate}\n\n---Contexto: "${fullContext}"\n\n---Pergunta do Usuário: "${question}"\n\n---Resposta:`;
 
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
@@ -138,43 +92,21 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
+    const knowledge = { id: Date.now().toString(), ...newKnowledge };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v6', JSON.stringify(updatedKnowledge));
     setNewKnowledge({ title: '', content: '' });
-    toast({ title: "Conhecimento adicionado", description: "Lembre-se de re-indexar a base para que a IA aprenda sobre este novo item." });
+    toast({ title: "Conhecimento adicionado", description: "O novo conhecimento já está disponível para a IA." });
   };
   
   const deleteKnowledge = (knowledgeId: string) => {
     const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledge));
-    toast({ title: "Conhecimento removido", description: "Lembre-se de re-indexar a base." });
+    localStorage.setItem('orakle_knowledge_base_v6', JSON.stringify(updatedKnowledge));
+    toast({ title: "Conhecimento removido" });
   };
   
-  const indexKnowledgeBase = async () => {
-    setIsIndexing(true);
-    toast({ title: "Iniciando indexação...", description: "A IA está aprendendo os conteúdos. Isso pode levar um momento." });
-    
-    try {
-      const updatedKnowledgeBase = await Promise.all(
-        knowledgeBase.map(async (doc) => {
-          const textToEmbed = `${doc.title}\n${doc.content}`;
-          const embedding = await getEmbedding(textToEmbed);
-          return { ...doc, embedding };
-        })
-      );
-      setKnowledgeBase(updatedKnowledgeBase);
-      localStorage.setItem('orakle_knowledge_base_v5', JSON.stringify(updatedKnowledgeBase));
-      toast({ title: "Indexação Concluída!", description: "A IA aprendeu os novos conteúdos com sucesso." });
-    } catch (error: any) {
-      toast({ title: "Erro de Indexação", description: error.message, variant: "destructive" });
-    } finally {
-      setIsIndexing(false);
-    }
-  };
-
   const savePromptTemplate = () => {
     localStorage.setItem('orakle_ai_prompt_template', promptTemplate);
     toast({
@@ -206,10 +138,6 @@ const SupportPage = ({ user }: SupportPageProps) => {
             <CardTitle className="text-slate-800">Base de Conhecimento</CardTitle>
           </CardHeader>
           <CardContent>
-            <Button onClick={indexKnowledgeBase} disabled={isIndexing} className="w-full rounded-2xl mb-4">
-              <BrainCircuit className="h-4 w-4 mr-2" />
-              {isIndexing ? 'Indexando...' : 'Indexar Base de Conhecimento'}
-            </Button>
             <div className="space-y-4">
               <Input placeholder="Título do Conhecimento" value={newKnowledge.title} onChange={(e) => setNewKnowledge({...newKnowledge, title: e.target.value})} className="rounded-2xl" />
               <Textarea placeholder="Conteúdo (informação para a IA)" value={newKnowledge.content} onChange={(e) => setNewKnowledge({...newKnowledge, content: e.target.value})} className="rounded-2xl min-h-[100px]" />
