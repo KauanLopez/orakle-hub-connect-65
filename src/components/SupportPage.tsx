@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { MessageCircle, Plus, ThumbsUp, ThumbsDown, Bot, User, Edit, Trash2, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const API_KEY = "AIzaSyADUR6WT2Zr4Wj01cJh45XQ-T5tmF0KH4c";
+
+const defaultPromptTemplate = `
+Você é o Orakle Assist, um assistente de suporte virtual amigável e prestativo da empresa Orakle. Sua principal função é ajudar os colaboradores a tirar dúvidas sobre os processos internos da empresa. Seja sempre cordial, profissional и vá direto ao ponto.
+
+Use exclusivamente a informação fornecida abaixo no campo 'Contexto' para formular sua resposta. Não adicione nenhuma informação que não esteja neste contexto.
+
+Se a informação no 'Contexto' não for suficiente para responder à pergunta do usuário, ou se a pergunta não tiver relação com o contexto, responda de forma educada que você não encontrou a informação e sugira que o usuário procure o supervisor dele para mais detalhes. Nunca invente uma resposta.
+`;
 
 interface SupportPageProps {
   user: any;
@@ -19,6 +28,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const [isManaging, setIsManaging] = useState(false);
   const [newKnowledge, setNewKnowledge] = useState({ keywords: '', answer: '' });
   const [editingKnowledge, setEditingKnowledge] = useState<any>(null);
+  const [promptTemplate, setPromptTemplate] = useState(defaultPromptTemplate);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,35 +38,15 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
     const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base') || '[]');
-    
+    const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
+
     setMessages(storedMessages);
     setKnowledgeBase(storedKnowledge);
     
-    // Inicializar base de conhecimento padrão se estiver vazia
-    if (storedKnowledge.length === 0) {
-      const defaultKnowledge = [
-        {
-          id: '1',
-          keywords: 'férias, solicitar férias, como pedir férias',
-          answer: 'Para solicitar férias, acesse o menu "Solicitações", clique em "Nova Solicitação", selecione o tipo "Férias" e preencha as datas desejadas. Sua solicitação será enviada para aprovação do supervisor.',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '2',
-          keywords: 'horário, trocar horário, mudança de horário',
-          answer: 'Para trocar horário com um colega, vá no menu "Solicitações", clique em "Troca de Horário", selecione o colega e as datas desejadas. Ambos precisam concordar com a troca.',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '3',
-          keywords: 'pontos, ranking, como ganhar pontos',
-          answer: 'Você pode ganhar pontos através de: boa avaliação nos atendimentos, participação em quizzes, bonificações manuais do supervisor e metas alcançadas. Consulte o menu "Ranking" para ver sua posição.',
-          createdAt: new Date().toISOString()
-        }
-      ];
-      
-      setKnowledgeBase(defaultKnowledge);
-      localStorage.setItem('orakle_knowledge_base', JSON.stringify(defaultKnowledge));
+    if (storedPrompt) {
+      setPromptTemplate(storedPrompt);
+    } else {
+      localStorage.setItem('orakle_ai_prompt_template', defaultPromptTemplate);
     }
   };
 
@@ -76,7 +66,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
     return "Desculpe, não encontrei informações sobre sua pergunta. Tente reformular ou entre em contato com seu supervisor para mais detalhes.";
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
     const userMessage = {
@@ -85,21 +75,63 @@ const SupportPage = ({ user }: SupportPageProps) => {
       sender: 'user',
       timestamp: new Date().toISOString()
     };
-
-    const aiResponse = findBestAnswer(inputMessage);
-    const aiMessage = {
-      id: (Date.now() + 1).toString(),
-      text: aiResponse,
-      sender: 'ai',
-      timestamp: new Date().toISOString(),
-      canRate: true
-    };
-
-    const updatedMessages = [...messages, userMessage, aiMessage];
-    setMessages(updatedMessages);
-    localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
     
+    setMessages(prev => [...prev, userMessage]);
+    const question = inputMessage;
     setInputMessage('');
+
+    const context = findBestAnswer(question);
+
+    const fullPrompt = `
+      ${promptTemplate}
+      ---
+      Contexto: "${context}"
+      ---
+      Pergunta do Usuário: "${question}"
+      ---
+      Resposta:
+    `;
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fullPrompt }] }]
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponseText = data.candidates[0].content.parts[0].text;
+      
+      const aiMessage = {
+        id: (Date.now() + 1).toString(),
+        text: aiResponseText,
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        canRate: true
+      };
+
+      const updatedMessages = [...messages, userMessage, aiMessage];
+      setMessages(updatedMessages);
+      localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
+
+    } catch (error) {
+      console.error("Erro ao chamar a API do Gemini:", error);
+      toast({
+        title: "Erro de Conexão",
+        description: "Não foi possível conectar ao assistente de IA no momento.",
+        variant: "destructive"
+      });
+      setInputMessage(question);
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+    }
   };
 
   const rateResponse = (messageId: string, helpful: boolean) => {
@@ -113,7 +145,6 @@ const SupportPage = ({ user }: SupportPageProps) => {
     setMessages(updatedMessages);
     localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
     
-    // Salvar feedback para análise
     const feedback = JSON.parse(localStorage.getItem('orakle_ai_feedback') || '[]');
     feedback.push({
       id: Date.now().toString(),
@@ -179,6 +210,14 @@ const SupportPage = ({ user }: SupportPageProps) => {
       description: "Resposta removida da base de conhecimento!"
     });
   };
+  
+  const savePromptTemplate = () => {
+    localStorage.setItem('orakle_ai_prompt_template', promptTemplate);
+    toast({
+      title: "Prompt Salvo!",
+      description: "O modelo de prompt da IA foi atualizado com sucesso.",
+    });
+  };
 
   if (canManageKnowledge && isManaging) {
     return (
@@ -194,10 +233,31 @@ const SupportPage = ({ user }: SupportPageProps) => {
           </Button>
         </div>
 
+        {/* Gerenciador de Prompt */}
+        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-slate-800">Configuração do Prompt do Assistente</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              placeholder="Defina o comportamento, regras e persona da IA aqui..."
+              value={promptTemplate}
+              onChange={(e) => setPromptTemplate(e.target.value)}
+              className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] min-h-[200px]"
+            />
+            <Button
+              onClick={savePromptTemplate}
+              className="w-full rounded-2xl"
+            >
+              Salvar Prompt
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Adicionar Novo Conhecimento */}
         <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-slate-800">Adicionar Nova Resposta</CardTitle>
+            <CardTitle className="text-slate-800">Adicionar Nova Resposta (Base de Conhecimento)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -213,7 +273,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
             </div>
             <div>
               <label className="text-sm font-medium text-slate-600 mb-2 block">
-                Resposta
+                Resposta (Contexto para a IA)
               </label>
               <Textarea
                 placeholder="Digite a resposta que a IA deve dar quando essas palavras-chave forem mencionadas..."
