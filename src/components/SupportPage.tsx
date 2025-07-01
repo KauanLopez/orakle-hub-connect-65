@@ -21,7 +21,6 @@ interface SupportPageProps {
   user: any;
 }
 
-// Helper function to calculate the dot product of two vectors
 const dotProduct = (vecA: number[], vecB: number[]) => {
   let product = 0;
   for (let i = 0; i < vecA.length; i++) {
@@ -77,24 +76,29 @@ const SupportPage = ({ user }: SupportPageProps) => {
   };
 
   const findMostRelevantContext = async (question: string) => {
-    if (knowledgeBase.length === 0) {
-      return "Base de conhecimento vazia.";
-    }
-
+    if (knowledgeBase.length === 0) return "Base de conhecimento vazia.";
+  
     try {
       const questionEmbedding = await getEmbedding(question);
-
-      let bestMatch = { score: -1, content: "Não encontrei informações sobre sua pergunta." };
-
-      for (const doc of knowledgeBase) {
-        if (doc.embedding) {
+  
+      const rankedDocs = knowledgeBase
+        .filter(doc => doc.embedding) // Apenas documentos que foram indexados
+        .map(doc => {
           const score = dotProduct(questionEmbedding, doc.embedding);
-          if (score > bestMatch.score) {
-            bestMatch = { score, content: doc.content };
-          }
-        }
+          return { ...doc, score };
+        })
+        .sort((a, b) => b.score - a.score);
+  
+      if (rankedDocs.length === 0) {
+        return "Nenhum documento relevante encontrado na base de conhecimento.";
       }
-      return bestMatch.content;
+      
+      // Pegar os 3 mais relevantes (ou menos, se não houver tantos)
+      const topDocs = rankedDocs.slice(0, 3);
+      
+      // Juntar o conteúdo dos documentos mais relevantes
+      return topDocs.map(doc => `Título: ${doc.title}\nConteúdo: ${doc.content}`).join('\n\n---\n\n');
+      
     } catch (error: any) {
       toast({ title: "Erro na Busca Semântica", description: error.message, variant: "destructive" });
       return "Ocorreu um erro ao tentar encontrar a resposta. Tente novamente.";
@@ -139,7 +143,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
+    const knowledge = { id: Date.now().toString(), title: newKnowledge.title, content: newKnowledge.content, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
     localStorage.setItem('orakle_knowledge_base_v2', JSON.stringify(updatedKnowledge));
