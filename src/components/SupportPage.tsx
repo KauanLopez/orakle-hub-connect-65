@@ -46,20 +46,19 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
-    let storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v3') || '[]');
+    let storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v4') || '[]');
     const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
 
-    // Hardcode test data if storage is empty
     if (!storedKnowledge || storedKnowledge.length === 0) {
       storedKnowledge = [
         {
           id: '1',
           title: 'Disciplinas de dependencia em cursos técnicos',
           content: "Disciplinas de dependência O aluno deverá obter média igual ou superior a 6,0 (seis) em cada disciplina para ser considera aprovado. Caso não tenha conseguido a média suficiente, o aluno é considerado reprovado na disciplina, ficando em dependência (DP). As disciplinas dependência são fornecidas quando o módulo de origem da mesma for ofertado novamente, ou seja, caso o aluno reprove na disciplina 1, constituinte do módulo 91/2023, ele conseguirá realiza-la novamente no módulo 91/2024. Ainda, todos os alunos que forem matriculados em regime de DP terão os mesmos critérios para estudo de uma disciplina curricular, ou seja, farão todas as atividades pertinentes a uma disciplina em regime curricular e a prova com valor de acordo com a grade do curso. Importante: • Se o aluno reprovar independentemente se realizou atividade pedagógica ou não, a disciplina voltará a ser ofertada novamente em regime de dependência; • O serviço de oferecimento das disciplinas de dependência",
-          chunks: []
+          embedding: null 
         }
       ];
-      localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(storedKnowledge));
+      localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(storedKnowledge));
     }
 
     setMessages(storedMessages);
@@ -89,37 +88,24 @@ const SupportPage = ({ user }: SupportPageProps) => {
   };
 
   const findMostRelevantContext = async (question: string) => {
-    if (knowledgeBase.length === 0) {
-      return "Base de conhecimento vazia.";
-    }
-
+    if (knowledgeBase.length === 0) return "Base de conhecimento vazia.";
+  
     try {
       const questionEmbedding = await getEmbedding(question);
-
-      const allChunks = knowledgeBase.flatMap(doc => doc.chunks || []);
-
-      if (allChunks.length === 0) {
-        return "A base de conhecimento não foi indexada. Por favor, peça a um administrador para indexar a base.";
-      }
-
-      const rankedChunks = allChunks
-        .map(chunk => {
-          const score = dotProduct(questionEmbedding, chunk.embedding);
-          return { ...chunk, score };
+  
+      const rankedDocs = knowledgeBase
+        .filter(doc => doc.embedding)
+        .map(doc => {
+          const score = dotProduct(questionEmbedding, doc.embedding);
+          return { ...doc, score };
         })
         .sort((a, b) => b.score - a.score);
-
-      if (rankedChunks.length === 0 || rankedChunks[0].score < 0.7) {
+  
+      if (rankedDocs.length === 0 || rankedDocs[0].score < 0.7) {
         return "Não encontrei informações sobre sua pergunta.";
       }
       
-      const bestChunk = rankedChunks[0];
-      const originalDoc = knowledgeBase.find(doc => doc.id === bestChunk.docId);
-      const chunkIndex = originalDoc.chunks.findIndex((c: any) => c.content === bestChunk.content);
-      
-      const contextChunks = originalDoc.chunks.slice(Math.max(0, chunkIndex - 1), chunkIndex + 2);
-      
-      return contextChunks.map((c: any) => c.content).join('\n');
+      return rankedDocs[0].content;
       
     } catch (error: any) {
       toast({ title: "Erro na Busca Semântica", description: error.message, variant: "destructive" });
@@ -165,10 +151,10 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, chunks: [] };
+    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledge));
     setNewKnowledge({ title: '', content: '' });
     toast({ title: "Conhecimento adicionado", description: "Lembre-se de re-indexar a base para que a IA aprenda sobre este novo item." });
   };
@@ -176,7 +162,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const deleteKnowledge = (knowledgeId: string) => {
     const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledge));
     toast({ title: "Conhecimento removido", description: "Lembre-se de re-indexar a base." });
   };
   
@@ -187,18 +173,13 @@ const SupportPage = ({ user }: SupportPageProps) => {
     try {
       const updatedKnowledgeBase = await Promise.all(
         knowledgeBase.map(async (doc) => {
-          const paragraphs = doc.content.split('\n').filter((p: string) => p.trim() !== '');
-          const chunks = await Promise.all(
-            paragraphs.map(async (paragraph: string) => {
-              const embedding = await getEmbedding(paragraph);
-              return { docId: doc.id, title: doc.title, content: paragraph, embedding };
-            })
-          );
-          return { ...doc, chunks };
+          const textToEmbed = `${doc.title}\n${doc.content}`;
+          const embedding = await getEmbedding(textToEmbed);
+          return { ...doc, embedding };
         })
       );
       setKnowledgeBase(updatedKnowledgeBase);
-      localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledgeBase));
+      localStorage.setItem('orakle_knowledge_base_v4', JSON.stringify(updatedKnowledgeBase));
       toast({ title: "Indexação Concluída!", description: "A IA aprendeu os novos conteúdos com sucesso." });
     } catch (error: any) {
       toast({ title: "Erro de Indexação", description: error.message, variant: "destructive" });
