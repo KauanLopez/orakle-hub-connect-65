@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 const API_KEY = "AIzaSyADUR6WT2Zr4Wj01cJh45XQ-T5tmF0KH4c";
 
 const defaultPromptTemplate = `
-Você é o Orakle Assist, um assistente de suporte virtual amigável e prestativo da empresa Orakle. Sua principal função é ajudar os colaboradores a tirar dúvidas sobre os processos internos da empresa. Seja sempre cordial, profissional и vá direto ao ponto.
+Você é o Orakle Assist, um assistente de suporte virtual amigável e prestativo da empresa Orakle. Sua principal função é ajudar os colaboradores a tirar dúvidas sobre os processos internos da empresa. Seja sempre cordial, profissional e vá direto ao ponto.
 
 Use exclusivamente a informação fornecida abaixo no campo 'Contexto' para formular sua resposta. Não adicione nenhuma informação que não esteja neste contexto.
 
@@ -103,11 +103,12 @@ const SupportPage = ({ user }: SupportPageProps) => {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
+        throw new Error(data?.error?.message || `API request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
       const aiResponseText = data.candidates[0].content.parts[0].text;
       
       const aiMessage = {
@@ -118,15 +119,14 @@ const SupportPage = ({ user }: SupportPageProps) => {
         canRate: true
       };
 
-      const updatedMessages = [...messages, userMessage, aiMessage];
-      setMessages(updatedMessages);
-      localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
+      setMessages(prev => [...prev, aiMessage]);
+      localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify([...messages, userMessage, aiMessage]));
 
-    } catch (error) {
-      console.error("Erro ao chamar a API do Gemini:", error);
+    } catch (error: any) {
+      console.error("Erro detalhado ao chamar a API do Gemini:", error);
       toast({
-        title: "Erro de Conexão",
-        description: "Não foi possível conectar ao assistente de IA no momento.",
+        title: "Erro de Conexão com a IA",
+        description: `Detalhe: ${error.message}`,
         variant: "destructive"
       });
       setInputMessage(question);
