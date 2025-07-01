@@ -46,7 +46,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const loadData = () => {
     const storedMessages = JSON.parse(localStorage.getItem(`orakle_chat_${user.id}`) || '[]');
-    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v2') || '[]');
+    const storedKnowledge = JSON.parse(localStorage.getItem('orakle_knowledge_base_v3') || '[]');
     const storedPrompt = localStorage.getItem('orakle_ai_prompt_template');
 
     setMessages(storedMessages);
@@ -77,27 +77,34 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const findMostRelevantContext = async (question: string) => {
     if (knowledgeBase.length === 0) return "Base de conhecimento vazia.";
-  
+
     try {
       const questionEmbedding = await getEmbedding(question);
-  
-      const rankedDocs = knowledgeBase
-        .filter(doc => doc.embedding) // Apenas documentos que foram indexados
-        .map(doc => {
-          const score = dotProduct(questionEmbedding, doc.embedding);
-          return { ...doc, score };
+      let allChunks: any[] = [];
+      knowledgeBase.forEach(doc => {
+        if(doc.chunks) {
+          allChunks = [...allChunks, ...doc.chunks];
+        }
+      });
+      
+      if(allChunks.length === 0) return "A base de conhecimento não foi indexada. Peça ao administrador para indexar.";
+
+      const rankedChunks = allChunks
+        .filter(chunk => chunk.embedding)
+        .map(chunk => {
+          const score = dotProduct(questionEmbedding, chunk.embedding);
+          return { ...chunk, score };
         })
         .sort((a, b) => b.score - a.score);
-  
-      if (rankedDocs.length === 0) {
-        return "Nenhum documento relevante encontrado na base de conhecimento.";
+
+      if (rankedChunks.length === 0 || rankedChunks[0].score < 0.7) {
+        return "Não encontrei informações sobre sua pergunta.";
       }
       
-      // Pegar os 3 mais relevantes (ou menos, se não houver tantos)
-      const topDocs = rankedDocs.slice(0, 3);
+      const topChunk = rankedChunks[0];
+      const context = `Título do Documento: ${topChunk.title}\n\n...${topChunk.content}...`;
       
-      // Juntar o conteúdo dos documentos mais relevantes
-      return topDocs.map(doc => `Título: ${doc.title}\nConteúdo: ${doc.content}`).join('\n\n---\n\n');
+      return context;
       
     } catch (error: any) {
       toast({ title: "Erro na Busca Semântica", description: error.message, variant: "destructive" });
@@ -143,10 +150,10 @@ const SupportPage = ({ user }: SupportPageProps) => {
 
   const addKnowledge = () => {
     if (!newKnowledge.title.trim() || !newKnowledge.content.trim()) return;
-    const knowledge = { id: Date.now().toString(), title: newKnowledge.title, content: newKnowledge.content, createdAt: new Date().toISOString(), createdBy: user.id, embedding: null };
+    const knowledge = { id: Date.now().toString(), ...newKnowledge, createdAt: new Date().toISOString(), createdBy: user.id, chunks: [] };
     const updatedKnowledge = [...knowledgeBase, knowledge];
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v2', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledge));
     setNewKnowledge({ title: '', content: '' });
     toast({ title: "Conhecimento adicionado", description: "Lembre-se de re-indexar a base para que a IA aprenda sobre este novo item." });
   };
@@ -154,7 +161,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const deleteKnowledge = (knowledgeId: string) => {
     const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
     setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base_v2', JSON.stringify(updatedKnowledge));
+    localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledge));
     toast({ title: "Conhecimento removido", description: "Lembre-se de re-indexar a base." });
   };
   
@@ -165,19 +172,59 @@ const SupportPage = ({ user }: SupportPageProps) => {
     try {
       const updatedKnowledgeBase = await Promise.all(
         knowledgeBase.map(async (doc) => {
-          const textToEmbed = `${doc.title}\n${doc.content}`;
-          const embedding = await getEmbedding(textToEmbed);
-          return { ...doc, embedding };
+          const paragraphs = doc.content.split('\n').filter((p: string) => p.trim() !== '');
+          const chunks = await Promise.all(
+            paragraphs.map(async (paragraph: string) => {
+              const embedding = await getEmbedding(paragraph);
+              return { title: doc.title, content: paragraph, embedding };
+            })
+          );
+          return { ...doc, chunks };
         })
       );
       setKnowledgeBase(updatedKnowledgeBase);
-      localStorage.setItem('orakle_knowledge_base_v2', JSON.stringify(updatedKnowledgeBase));
+      localStorage.setItem('orakle_knowledge_base_v3', JSON.stringify(updatedKnowledgeBase));
       toast({ title: "Indexação Concluída!", description: "A IA aprendeu os novos conteúdos com sucesso." });
     } catch (error: any) {
       toast({ title: "Erro de Indexação", description: error.message, variant: "destructive" });
     } finally {
       setIsIndexing(false);
     }
+  };
+  
+  const rateResponse = (messageId: string, helpful: boolean) => {
+    const updatedMessages = messages.map(msg => {
+      if (msg.id === messageId) {
+        return { ...msg, rating: helpful ? 'helpful' : 'not_helpful', canRate: false };
+      }
+      return msg;
+    });
+    
+    setMessages(updatedMessages);
+    localStorage.setItem(`orakle_chat_${user.id}`, JSON.stringify(updatedMessages));
+    
+    const feedback = JSON.parse(localStorage.getItem('orakle_ai_feedback') || '[]');
+    feedback.push({
+      id: Date.now().toString(),
+      messageId,
+      userId: user.id,
+      helpful,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('orakle_ai_feedback', JSON.stringify(feedback));
+    
+    toast({
+      title: "Obrigado pelo feedback!",
+      description: helpful ? "Marcado como útil" : "Marcado como não útil"
+    });
+  };
+  
+  const savePromptTemplate = () => {
+    localStorage.setItem('orakle_ai_prompt_template', promptTemplate);
+    toast({
+      title: "Prompt Salvo!",
+      description: "O modelo de prompt da IA foi atualizado com sucesso.",
+    });
   };
 
   if (canManageKnowledge && isManaging) {
@@ -194,7 +241,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea placeholder="Defina o comportamento, regras e persona da IA aqui..." value={promptTemplate} onChange={(e) => setPromptTemplate(e.target.value)} className="rounded-2xl border-0 bg-white/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] min-h-[200px]" />
-            <Button onClick={() => localStorage.setItem('orakle_ai_prompt_template', promptTemplate)} className="w-full rounded-2xl">Salvar Prompt</Button>
+            <Button onClick={savePromptTemplate} className="w-full rounded-2xl">Salvar Prompt</Button>
           </CardContent>
         </Card>
         
@@ -219,7 +266,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
                     <span className="font-semibold">{doc.title}</span>
                     <Button size="sm" variant="ghost" onClick={() => deleteKnowledge(doc.id)}><Trash2 className="h-4 w-4"/></Button>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">{doc.content}</p>
+                  <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{doc.content}</p>
                 </div>
               ))}
             </div>
