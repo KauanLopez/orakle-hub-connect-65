@@ -30,6 +30,8 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const [editingKnowledge, setEditingKnowledge] = useState<any>(null);
   const [promptTemplate, setPromptTemplate] = useState(defaultPromptTemplate);
   const { toast } = useToast();
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [selectedGameForStats, setSelectedGameForStats] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -93,7 +95,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
     `;
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,18 +201,17 @@ const SupportPage = ({ user }: SupportPageProps) => {
       description: "Resposta atualizada com sucesso!"
     });
   };
-
-  const deleteKnowledge = (knowledgeId: string) => {
-    const updatedKnowledge = knowledgeBase.filter(k => k.id !== knowledgeId);
-    setKnowledgeBase(updatedKnowledge);
-    localStorage.setItem('orakle_knowledge_base', JSON.stringify(updatedKnowledge));
-    
+  
+  const deleteGame = (gameId: string) => {
+    const updatedGames = games.filter((g) => g.id !== gameId);
+    setGames(updatedGames);
+    localStorage.setItem('orakle_games', JSON.stringify(updatedGames));
     toast({
-      title: "Conhecimento removido",
-      description: "Resposta removida da base de conhecimento!"
+      title: 'Jogo Removido',
+      description: 'O jogo foi removido com sucesso.',
     });
   };
-  
+
   const savePromptTemplate = () => {
     localStorage.setItem('orakle_ai_prompt_template', promptTemplate);
     toast({
