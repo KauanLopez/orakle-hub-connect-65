@@ -17,7 +17,7 @@ Você é um assistente virtual especialista nos processos acadêmicos da Unicesu
 - Comece a resposta indo direto ao ponto, sem usar saudações como "Olá, tudo bem?".
 - Adote um tom humanizado e didático, como se estivesse explicando para um colega.
 - Utilize exemplos práticos ou analogias simples para clarificar conceitos complexos.
-- O uso de emojis é permitido AS VEZES, mas de forma sutil e apropriada, para tornar a comunicação mais leve (ex: 😉, 📚, ✅).
+- O uso de emojis é permitido, mas de forma sutil e apropriada, para tornar a comunicação mais leve (ex: 😉, 📚, ✅).
 
 # Regras de Execução
 1.  **Fonte da Verdade:** Baseie sua resposta **exclusivamente** no "Contexto" fornecido abaixo. Não utilize nenhum conhecimento externo.
@@ -69,6 +69,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
   const canManageKnowledge = user.userType === 'supervisor' || user.userType === 'admin';
 
   const getEmbedding = async (text: string) => {
+    await new Promise(resolve => setTimeout(resolve, 4000)); 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,7 +87,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
     if (knowledgeBase.length === 0) return "A base de conhecimento está vazia.";
     
     const indexedDocs = knowledgeBase.filter(doc => doc.embedding);
-    if (indexedDocs.length === 0) return "A base de conhecimento não foi indexada. Peça a um administrador para indexar a base.";
+    if (indexedDocs.length === 0) return "A base de conhecimento não foi indexada.";
 
     try {
       const questionEmbedding = await getEmbedding(question);
@@ -98,7 +99,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
         })
         .sort((a, b) => b.score - a.score);
   
-      if (rankedDocs[0].score < 0.7) { // Limiar de confiança
+      if (rankedDocs[0].score < 0.7) {
         return "Não encontrei informações sobre sua pergunta na base de conhecimento.";
       }
       
@@ -123,7 +124,7 @@ const SupportPage = ({ user }: SupportPageProps) => {
     const fullPrompt = `${promptTemplate}\n\n---Contexto Fornecido:\n${context}\n\n---Pergunta do Usuário:\n${question}\n\n---Resposta:`;
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
@@ -168,10 +169,10 @@ const SupportPage = ({ user }: SupportPageProps) => {
     toast({ title: "Iniciando indexação...", description: "A IA está aprendendo cada documento. Isso pode demorar um pouco." });
     
     try {
-      const updatedKnowledgeBase = [...knowledgeBase];
+      let updatedKnowledgeBase = [...knowledgeBase];
       for (let i = 0; i < updatedKnowledgeBase.length; i++) {
         const doc = updatedKnowledgeBase[i];
-        if (!doc.embedding) {
+        if (!doc.embedding) { 
           toast({ title: `Indexando ${i + 1}/${knowledgeBase.length}`, description: doc.title });
           await new Promise(resolve => setTimeout(resolve, 4000));
           const textToEmbed = `${doc.title}\n${doc.content}`;
